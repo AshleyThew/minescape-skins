@@ -69,16 +69,37 @@ jobs:
             git push
           fi
 
+      # A run that changed nothing must not cut a release: the manifest bytes, and
+      # so its digest, are identical, and republishing would make every server
+      # re-download a manifest it already has.
+      - name: Decide whether to release
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ steps.commit.outputs.changed }}" = "true" ]; then
+            echo "release=true" >> $GITHUB_OUTPUT
+          elif gh release view --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "release=false" >> $GITHUB_OUTPUT
+            echo "Nothing changed and a release already exists - skipping."
+          else
+            echo "release=true" >> $GITHUB_OUTPUT
+            echo "No release exists yet - publishing the current manifest."
+          fi
+
       - name: Compute digest
+        if: steps.decide.outputs.release == 'true'
         run: |
           sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
           echo "manifest.json sha256: $(cat manifest.json.sha256)"
 
       - name: Set release tag
         id: tag
+        if: steps.decide.outputs.release == 'true'
         run: echo "tag=skins-$(date -u +%Y%m%d)-${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Publish release
+        if: steps.decide.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}

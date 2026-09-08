@@ -138,12 +138,23 @@ def main():
         if name != changed[-1]:
             time.sleep(mineskin.BETWEEN_SKINS)
 
+    skins = dict(sorted(skins.items()))
+
+    # Leave the file completely alone when no skin actually changed. Rewriting it
+    # just to bump `generated` would change the manifest's SHA-256 on every run,
+    # which defeats the server's "same digest, nothing to download" shortcut and
+    # commits noise back to main forever.
+    if skins == previous and MANIFEST.exists():
+        print("")
+        print("no skin changed - manifest.json left untouched")
+        return 0
+
     doc = {
         "version": 1,
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "commit": git_commit(),
         "count": len(skins),
-        "skins": dict(sorted(skins.items())),
+        "skins": skins,
     }
     MANIFEST.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print("")
