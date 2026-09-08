@@ -1,0 +1,104 @@
+name: Release skins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'skins/**'
+      - 'tools/**'
+      - '.github/workflows/release.yml'
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Re-upload every skin to MineSkin (rarely correct)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Two pushes in quick succession would race on the manifest commit-back, and a
+# cancelled run could leave a release without its matching commit.
+concurrency:
+  group: skins-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Upload changed skins and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.BOT_SECRET || github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Runs before anything is uploaded, so a malformed PNG costs no MineSkin quota.
+      - name: Validate skins
+        run: python tools/validate.py
+
+      - name: Upload changed skins and rebuild manifest
+        env:
+          MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
+        run: |
+          if [ "${{ inputs.force_all }}" = "true" ]; then
+            python tools/build_manifest.py --upload --force-all
+          else
+            python tools/build_manifest.py --upload
+          fi
+
+      - name: Commit the manifest
+        id: commit
+        run: |
+          git config user.name 'MineScape-Bot'
+          git config user.email 'bot@minescape.me'
+          if git diff --quiet -- manifest.json; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Manifest unchanged."
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            git add manifest.json
+            git commit -m "Update skin manifest"
+            git push
+          fi
+
+      - name: Compute digest
+        run: |
+          sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
+          echo "manifest.json sha256: $(cat manifest.json.sha256)"
+
+      - name: Set release tag
+        id: tag
+        run: echo "tag=skins-$(date -u +%Y%m%d)-${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Skins ${{ steps.tag.outputs.tag }}
+          body: |
+            Skin manifest published from `${{ github.sha }}`.
+
+            The server plugin fetches these two assets and refuses the manifest
+            unless its SHA-256 matches:
+
+            - `manifest.json`
+            - `manifest.json.sha256`
+
+            Stable URLs:
+            ```
+            https://github.com/${{ github.repository }}/releases/latest/download/manifest.json
+            https://github.com/${{ github.repository }}/releases/latest/download/manifest.json.sha256
+            ```
+          files: |
+            manifest.json
+            manifest.json.sha256
+          draft: false
+          prerelease: false

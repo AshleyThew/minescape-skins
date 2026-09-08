@@ -1,0 +1,28 @@
+name: Validate
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Check skin images
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate skins
+        run: python tools/validate.py
+
+      # Shows the reviewer exactly which skins the merge would send to MineSkin,
+      # without uploading anything or needing the API key.
+      - name: Report pending uploads
+        run: python tools/build_manifest.py --check
