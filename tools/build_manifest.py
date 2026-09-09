@@ -40,6 +40,10 @@ SKINS = ROOT / "skins"
 # still being filled in batches of a hundred or more.
 MAX_REPLACEMENTS = 50
 
+# Exit code meaning "this went fine, there is just more to do". The workflow publishes
+# what was produced and lets the next scheduled run continue, rather than going red.
+PARTIAL = 75
+
 
 def load_manifest(path):
     """The previous manifest's skins, or {} when there is none yet (the very first run)."""
@@ -94,6 +98,7 @@ def main():
     ap.add_argument("--force-all", action="store_true", help="re-upload every skin (rarely correct)")
     ap.add_argument("--baseline", type=Path, help="previous manifest to diff against (the release asset)")
     ap.add_argument("--output", type=Path, help="where to write the new manifest (--upload only)")
+    ap.add_argument("--max-uploads", type=int, help="stop after this many uploads, leaving the rest for the next run")
     args = ap.parse_args()
 
     errors = validator.validate(SKINS)
@@ -139,32 +144,60 @@ def main():
               "this really is intended.", file=sys.stderr)
         return 1
 
-    key = mineskin.api_key() if changed else None
+    client = mineskin.Client() if changed else None
+    budget = 0
+    if client:
+        print("key limits: " + str(client.grants))
+        # 100 uploads an hour means a large batch cannot finish in one run. Do what the
+        # quota allows, publish that, and let the next run continue from it - the
+        # manifest we publish is the baseline it will diff against.
+        budget = args.max_uploads if args.max_uploads is not None else client.per_hour
+        print("uploading at most " + str(budget) + " skin(s) this run")
+
     skins = {}
+    done = 0
+    failures = []
+    deferred = []
+    stopped = None
 
     for name, f in sorted(files.items()):
         digest = hashlib.sha256(f.read()).hexdigest()
+        entry = None
 
-        if name not in changed:
+        if name in changed and stopped is None and done < budget:
+            try:
+                print("uploading " + name + " (" + f.variant + ")... ["
+                      + str(done + 1) + "/" + str(min(len(changed), budget)) + "]")
+                value, signature = client.upload(f.path, name, f.variant)
+                entry = {
+                    "texture": value,
+                    "signature": signature,
+                    "image_sha256": digest,
+                    "texture_url": texture_url(value),
+                }
+                # A display override is content, not upload output - never lose it.
+                if previous.get(name, {}).get("display"):
+                    entry["display"] = previous[name]["display"]
+                done += 1
+            except mineskin.QuotaExhausted as e:
+                # Everything uploaded so far is still good; stop here and keep it.
+                stopped = e
+                print("  " + str(e))
+                deferred.append(name)
+            except mineskin.UploadError as e:
+                failures.append((name, str(e)))
+                print("  FAILED " + name + ": " + str(e))
+        elif name in changed:
+            deferred.append(name)
+
+        if entry is None:
+            if name not in previous:
+                # Never uploaded, so there is nothing to publish for it yet. It stays out
+                # of the manifest and the next run picks it up.
+                continue
+            # Keep the previous texture rather than dropping the skin entirely.
             entry = dict(previous[name])
-            entry["image_sha256"] = digest
-        else:
-            print("uploading " + name + " (" + f.variant + ")...")
-            value, signature = mineskin.upload(f.path, name, f.variant, key)
-            entry = {
-                "texture": value,
-                "signature": signature,
-                "image_sha256": digest,
-                "texture_url": texture_url(value),
-            }
-            # A display override is content, not upload output - never lose it.
-            if previous.get(name, {}).get("display"):
-                entry["display"] = previous[name]["display"]
-            if name != changed[-1]:
-                time.sleep(mineskin.BETWEEN_SKINS)
 
-        # Region and model are re-derived from the file every run, so moving or renaming a
-        # file updates the manifest without costing an upload.
         entry["region"] = f.region
         if f.slim:
             entry["slim"] = True
@@ -174,12 +207,19 @@ def main():
 
     skins = dict(sorted(skins.items()))
 
+    outstanding = sorted(set(deferred) | {n for n, _ in failures})
+
+    print("")
+    print("uploaded " + str(done) + " skin(s) this run")
+    if outstanding:
+        print(str(len(outstanding)) + " still to do: " + ", ".join(outstanding[:10])
+              + (" ..." if len(outstanding) > 10 else ""))
+
     # Writing an identical manifest with a fresh `generated` stamp would change its
     # SHA-256, which defeats the server's "same digest, nothing to download" shortcut.
     if skins == previous:
-        print("")
         print("nothing changed - no new manifest written")
-        return 0
+        return 1 if failures else (PARTIAL if outstanding else 0)
 
     doc = {
         "version": 1,
@@ -188,10 +228,11 @@ def main():
         "count": len(skins),
         "skins": skins,
     }
-    MANIFEST.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print("")
-    print("wrote manifest.json with " + str(len(skins)) + " skins")
-    return 0
+    out = args.output or (ROOT / "manifest.json")
+    out.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print("wrote " + str(out) + " with " + str(len(skins)) + " skins")
+
+    return 1 if failures else (PARTIAL if outstanding else 0)
 
 
 if __name__ == "__main__":

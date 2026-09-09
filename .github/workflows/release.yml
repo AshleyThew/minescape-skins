@@ -7,6 +7,10 @@ on:
       - 'skins/**'
       - 'tools/**'
       - '.github/workflows/release.yml'
+  # The key allows 100 uploads an hour, so a large batch cannot finish in one run.
+  # This drains whatever is left; it exits in seconds when there is nothing to do.
+  schedule:
+    - cron: '20 * * * *'
   workflow_dispatch:
     inputs:
       force_all:
@@ -57,7 +61,9 @@ jobs:
             echo "No previous release - every skin will be uploaded."
           fi
 
+      # Exit 75 means "fine, but there is more to do" - the hourly schedule continues it.
       - name: Upload changed skins and build the manifest
+        id: build
         env:
           MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
         run: |
@@ -68,12 +74,21 @@ jobs:
           if [ "${{ inputs.force_all }}" = "true" ]; then
             args="$args --force-all"
           fi
+          set +e
           python tools/build_manifest.py $args
+          code=$?
+          set -e
+          if [ "$code" = "75" ]; then
+            echo "::warning::MineSkin quota reached - publishing what was uploaded; the hourly schedule will continue."
+            exit 0
+          fi
+          exit $code
 
       # No new manifest means nothing changed, so the current release already describes
       # these images and republishing would make every server re-download it.
       - name: Decide whether to release
         id: decide
+        if: always()
         run: |
           if [ -f manifest.json ]; then
             echo "release=true" >> $GITHUB_OUTPUT
@@ -83,18 +98,18 @@ jobs:
           fi
 
       - name: Compute digest
-        if: steps.decide.outputs.release == 'true'
+        if: always() && steps.decide.outputs.release == 'true'
         run: |
           sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
           echo "manifest.json sha256: $(cat manifest.json.sha256)"
 
       - name: Set release tag
         id: tag
-        if: steps.decide.outputs.release == 'true'
+        if: always() && steps.decide.outputs.release == 'true'
         run: echo "tag=skins-$(date -u +%Y%m%d)-${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Publish release
-        if: steps.decide.outputs.release == 'true'
+        if: always() && steps.decide.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
