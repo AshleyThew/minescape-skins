@@ -6,10 +6,14 @@ Each skin is one PNG under [`skins/`](skins), named after the key the server loo
 
 ## Adding or changing a skin
 
-1. Drop a **64×64 PNG** into `skins/`, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
-2. Open a PR. CI validates the image and reports which skins the merge would upload.
-3. Merge. CI uploads only the changed images, commits the new `manifest.json`, and cuts a release.
+`main` takes pull requests only, so every change goes through one.
+
+1. Branch, and drop a **64×64 PNG** into `skins/`, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
+2. Open a PR. CI validates the image, uploads the changed ones to MineSkin, and **commits the updated `manifest.json` onto your PR branch** — so the texture and signature the server will use are visible in the diff before anything ships.
+3. Merge. CI publishes the manifest as a release; it uploads nothing, because the PR already did.
 4. The change reaches every region on the next server start, or immediately with `/skins pull`.
+
+A PR cannot merge while `manifest.json` disagrees with the images beside it, and `main` refuses to publish a manifest that does not describe them.
 
 To replace an existing skin, overwrite its PNG — keep the filename and the server keeps the reference.
 
@@ -51,6 +55,7 @@ Generated, committed, and published as a release asset.
 |---|---|
 | `tools/validate.py` | Filename, PNG format and dimension checks. Runs on PRs and before any upload. |
 | `tools/build_manifest.py --check` | Reports which skins would be uploaded. Uploads nothing, needs no API key. |
+| `tools/build_manifest.py --verify` | Same, but exits non-zero if the manifest and the images disagree. Gates PRs and releases. |
 | `tools/build_manifest.py --upload` | Uploads changed skins and rewrites the manifest. Used by CI. |
 | `tools/upload.py` | MineSkin v2 client. |
 | `tools/seed.py` | One-time bootstrap from the old `Skins.java` enum. Kept so the seed stays reproducible. |

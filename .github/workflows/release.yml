@@ -5,33 +5,26 @@ on:
     branches: [main]
     paths:
       - 'skins/**'
-      - 'tools/**'
+      - 'manifest.json'
       - '.github/workflows/release.yml'
   workflow_dispatch:
-    inputs:
-      force_all:
-        description: 'Re-upload every skin to MineSkin (rarely correct)'
-        type: boolean
-        default: false
 
 permissions:
   contents: write
 
-# Two pushes in quick succession would race on the manifest commit-back, and a
-# cancelled run could leave a release without its matching commit.
 concurrency:
   group: skins-release
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Upload changed skins and publish
+    name: Publish the manifest
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.BOT_SECRET || github.token }}
+          fetch-depth: 2
 
       - uses: actions/setup-python@v5
         with:
@@ -40,51 +33,33 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Runs before anything is uploaded, so a malformed PNG costs no MineSkin quota.
       - name: Validate skins
         run: python tools/validate.py
 
-      - name: Upload changed skins and rebuild manifest
-        env:
-          MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
-        run: |
-          if [ "${{ inputs.force_all }}" = "true" ]; then
-            python tools/build_manifest.py --upload --force-all
-          else
-            python tools/build_manifest.py --upload
-          fi
+      # main takes pull requests only, so nothing is uploaded or committed here - the PR
+      # already did that. This just refuses to publish a manifest that does not describe
+      # the images beside it.
+      - name: Verify the manifest matches the images
+        run: python tools/build_manifest.py --verify
 
-      - name: Commit the manifest
-        id: commit
-        run: |
-          git config user.name 'MineScape-Bot'
-          git config user.email 'bot@minescape.me'
-          if git diff --quiet -- manifest.json; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "Manifest unchanged."
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            git add manifest.json
-            git commit -m "Update skin manifest"
-            git push
-          fi
-
-      # A run that changed nothing must not cut a release: the manifest bytes, and
-      # so its digest, are identical, and republishing would make every server
-      # re-download a manifest it already has.
+      # A run triggered by a workflow file or manifest-only change should not mint a
+      # release identical to the last one.
       - name: Decide whether to release
         id: decide
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ steps.commit.outputs.changed }}" = "true" ]; then
+          if ! gh release view --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "release=true" >> $GITHUB_OUTPUT
-          elif gh release view --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "No release exists yet - publishing."
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release=true" >> $GITHUB_OUTPUT
+            echo "Manual run - publishing."
+          elif git diff --quiet HEAD^ HEAD -- manifest.json; then
             echo "release=false" >> $GITHUB_OUTPUT
-            echo "Nothing changed and a release already exists - skipping."
+            echo "manifest.json unchanged in this push - skipping."
           else
             echo "release=true" >> $GITHUB_OUTPUT
-            echo "No release exists yet - publishing the current manifest."
           fi
 
       - name: Compute digest

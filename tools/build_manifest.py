@@ -77,6 +77,7 @@ def main():
     ap = argparse.ArgumentParser()
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--check", action="store_true", help="report changes, upload nothing")
+    group.add_argument("--verify", action="store_true", help="like --check, but fail if anything is out of sync")
     group.add_argument("--upload", action="store_true", help="upload changed skins and rewrite the manifest")
     ap.add_argument("--force-all", action="store_true", help="re-upload every skin (rarely correct)")
     args = ap.parse_args()
@@ -98,6 +99,18 @@ def main():
         print("  - " + name)
 
     if args.check:
+        return 0
+
+    if args.verify:
+        # main is published straight from the committed manifest, so a PNG the manifest
+        # does not describe means the release would ship stale texture data.
+        if changed or removed:
+            print("")
+            print("manifest.json is out of sync with skins/ - it must be updated in the pull "
+                  "request that changes the images.", file=sys.stderr)
+            return 1
+        print("")
+        print("manifest.json matches skins/")
         return 0
 
     if len(changed) > MAX_UPLOADS and not args.force_all:

@@ -4,8 +4,14 @@ on:
   pull_request:
     branches: [main]
 
+# main only accepts pull requests, so the manifest has to be brought up to date here
+# rather than pushed to main afterwards. Writing to the PR branch is what needs the token.
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: skins-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -14,15 +20,48 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.BOT_SECRET || github.token }}
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Runs before anything is uploaded, so a malformed PNG costs no MineSkin quota.
       - name: Validate skins
         run: python tools/validate.py
 
-      # Shows the reviewer exactly which skins the merge would send to MineSkin,
-      # without uploading anything or needing the API key.
+      # A fork's workflow gets no secrets and cannot push, so it only reports.
       - name: Report pending uploads
-        run: python tools/build_manifest.py --check
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          python tools/build_manifest.py --check
+          echo "Fork PR: the manifest must be updated by a maintainer before this can merge."
+
+      - name: Upload changed skins and update the manifest
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
+        run: python tools/build_manifest.py --upload
+
+      - name: Commit the manifest to this pull request
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          git config user.name 'MineScape-Bot'
+          git config user.email 'bot@minescape.me'
+          if git diff --quiet -- manifest.json; then
+            echo "Manifest already up to date."
+          else
+            git add manifest.json
+            git commit -m "Update skin manifest"
+            git push origin HEAD:${{ github.head_ref }}
+            echo "Pushed an updated manifest - review the texture/signature diff before merging."
+          fi
+
+      # Guards the merge: main publishes straight from the committed manifest.
+      - name: Verify the manifest matches the images
+        run: python tools/build_manifest.py --verify
