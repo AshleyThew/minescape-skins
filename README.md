@@ -2,7 +2,7 @@
 
 Source images for every NPC and player skin on [MineScape](https://minescape.me), and the pipeline that turns them into something the server can load at runtime.
 
-Each skin is one PNG under [`skins/`](skins), named after the key the server looks it up by. Push a change to `main` and CI uploads the changed images to [MineSkin](https://mineskin.org), rebuilds `manifest.json`, and publishes it as a GitHub release. The server plugin pulls that release on startup, verifies its SHA-256, and swaps the skins in — no plugin rebuild, no redeploy.
+Each skin is one PNG under [`skins/`](skins), named after the key the server looks it up by. Open a pull request and CI uploads the changed images to [MineSkin](https://mineskin.org) and updates `manifest.json` on your branch; merging publishes that manifest as a GitHub release. The server plugin pulls the release on startup, verifies its SHA-256, and swaps the skins in — no plugin rebuild, no redeploy.
 
 ## Adding or changing a skin
 
