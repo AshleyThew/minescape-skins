@@ -1,12 +1,13 @@
 """
-Rebuilds manifest.json from the PNGs in skins/.
+Rebuilds manifest.json from the PNGs under skins/.
 
-A skin is only sent to MineSkin when its PNG content actually changed - the
-image_sha256 recorded in the manifest is compared against the file on disk.
-Everything unchanged is copied through byte-for-byte, so signatures that have
-worked for years are never regenerated.
+A skin is only sent to MineSkin when its PNG content actually changed - the image_sha256
+recorded in the manifest is compared against the file on disk. Everything unchanged is
+copied through byte-for-byte, so signatures that have worked for years are never
+regenerated. Moving a skin between region folders is therefore free.
 
     python tools/build_manifest.py --check     # report what would change, upload nothing
+    python tools/build_manifest.py --verify    # same, but fail if anything is out of sync
     python tools/build_manifest.py --upload    # upload changed skins and rewrite the manifest
 """
 
@@ -23,19 +24,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import upload as mineskin
 import validate as validator
+from skinfile import iter_skins
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "manifest.json"
 SKINS = ROOT / "skins"
 
-# A single push should never legitimately rewrite a big slice of the set. Above
-# this, stop and make a human look - it is almost certainly a bulk mistake, and
-# each upload costs quota and replaces a working signature.
+# A single push should never legitimately rewrite a big slice of the set. Above this, stop
+# and make a human look - each upload costs quota and replaces a working signature.
 MAX_UPLOADS = 50
-
-
-def sha256_file(path):
-    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def load_manifest():
@@ -51,26 +48,34 @@ def texture_url(texture):
 
 def git_commit():
     try:
-        return subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True
-        ).strip()
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(ROOT), text=True).strip()
     except Exception:
         return None
 
 
-def plan(previous, force_all):
-    """Returns (names_needing_upload, names_removed)."""
-    current = sorted(p.stem for p in SKINS.glob("*.png"))
+def current_skins():
+    """name -> SkinFile for every PNG under skins/. Validation has already rejected duplicates."""
+    return {f.name: f for f in iter_skins(SKINS) if f.path.suffix == ".png"}
+
+
+def plan(files, previous, force_all):
+    """Returns (changed, removed). A region move or a slim flip counts as changed only if it changes the image or the model."""
     changed = []
-    for name in current:
+    for name, f in sorted(files.items()):
         if force_all:
             changed.append(name)
             continue
         entry = previous.get(name)
-        if not entry or entry.get("image_sha256") != sha256_file(SKINS / (name + ".png")):
+        if not entry:
             changed.append(name)
-    removed = sorted(set(previous) - set(current))
-    return current, changed, removed
+        elif entry.get("image_sha256") != hashlib.sha256(f.read()).hexdigest():
+            changed.append(name)
+        elif bool(entry.get("slim")) != f.slim:
+            # The model is baked into the signed texture, so switching Steve/Alex needs a
+            # fresh upload even though the image bytes are identical.
+            changed.append(name)
+    removed = sorted(set(previous) - set(files))
+    return changed, removed
 
 
 def main():
@@ -84,17 +89,18 @@ def main():
 
     errors = validator.validate(SKINS)
     if errors:
-        for e in errors:
-            print("ERROR " + e, file=sys.stderr)
+        for relpath, message in errors:
+            print("ERROR " + relpath + ": " + message, file=sys.stderr)
         return 1
 
+    files = current_skins()
     previous = load_manifest()
-    current, changed, removed = plan(previous, args.force_all)
+    changed, removed = plan(files, previous, args.force_all)
 
-    print(str(len(current)) + " skins on disk, " + str(len(previous)) + " in the manifest")
+    print(str(len(files)) + " skins on disk, " + str(len(previous)) + " in the manifest")
     print(str(len(changed)) + " new or changed, " + str(len(removed)) + " removed")
     for name in changed:
-        print("  + " + name)
+        print("  + " + name + "  (" + files[name].relpath + ")")
     for name in removed:
         print("  - " + name)
 
@@ -123,43 +129,44 @@ def main():
     key = mineskin.api_key() if changed else None
     skins = {}
 
-    for name in current:
-        path = SKINS / (name + ".png")
-        digest = sha256_file(path)
+    for name, f in sorted(files.items()):
+        digest = hashlib.sha256(f.read()).hexdigest()
 
         if name not in changed:
-            # Carry the existing entry through untouched, only refreshing the digest
-            # field's companion data if the manifest predates it.
             entry = dict(previous[name])
             entry["image_sha256"] = digest
-            skins[name] = entry
-            continue
+        else:
+            print("uploading " + name + " (" + f.variant + ")...")
+            value, signature = mineskin.upload(f.path, name, f.variant, key)
+            entry = {
+                "texture": value,
+                "signature": signature,
+                "image_sha256": digest,
+                "texture_url": texture_url(value),
+            }
+            # A display override is content, not upload output - never lose it.
+            if previous.get(name, {}).get("display"):
+                entry["display"] = previous[name]["display"]
+            if name != changed[-1]:
+                time.sleep(mineskin.BETWEEN_SKINS)
 
-        print("uploading " + name + "...")
-        value, signature = mineskin.upload(path, name, key)
-        entry = {
-            "texture": value,
-            "signature": signature,
-            "image_sha256": digest,
-            "texture_url": texture_url(value),
-        }
-        # A display override is content, not upload output - never lose it.
-        if previous.get(name, {}).get("display"):
-            entry["display"] = previous[name]["display"]
+        # Region and model are re-derived from the file every run, so moving or renaming a
+        # file updates the manifest without costing an upload.
+        entry["region"] = f.region
+        if f.slim:
+            entry["slim"] = True
+        else:
+            entry.pop("slim", None)
         skins[name] = entry
-
-        if name != changed[-1]:
-            time.sleep(mineskin.BETWEEN_SKINS)
 
     skins = dict(sorted(skins.items()))
 
-    # Leave the file completely alone when no skin actually changed. Rewriting it
-    # just to bump `generated` would change the manifest's SHA-256 on every run,
-    # which defeats the server's "same digest, nothing to download" shortcut and
-    # commits noise back to main forever.
+    # Leave the file completely alone when nothing changed. Rewriting it just to bump
+    # `generated` would change the manifest's SHA-256 on every run, which defeats the
+    # server's "same digest, nothing to download" shortcut.
     if skins == previous and MANIFEST.exists():
         print("")
-        print("no skin changed - manifest.json left untouched")
+        print("nothing changed - manifest.json left untouched")
         return 0
 
     doc = {

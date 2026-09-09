@@ -65,12 +65,16 @@ def _extract(result):
     return value, signature
 
 
-def upload(path, name, key=None):
+def upload(path, name, variant="classic", key=None):
     """
     Uploads one PNG and returns (texture_value, signature).
 
     `name` is the skin's manifest key; MineSkin caps its own label at 20 chars.
+    `variant` is 'classic' (Steve) or 'slim' (Alex) - it is baked into the signed
+    texture, so it cannot be changed later without re-uploading.
     """
+    if variant not in ("classic", "slim"):
+        raise UploadError("unknown model variant: " + variant)
     key = key or api_key()
 
     with open(path, "rb") as handle:
@@ -79,7 +83,7 @@ def upload(path, name, key=None):
             BASE_URL + "/queue",
             key,
             files={"file": (path.name, handle, "image/png")},
-            data={"variant": "classic", "visibility": "unlisted", "name": name[:20]},
+            data={"variant": variant, "visibility": "unlisted", "name": name[:20]},
         )
 
     job_id = result.get("job", {}).get("id")
