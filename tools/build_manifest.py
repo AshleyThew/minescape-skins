@@ -30,9 +30,12 @@ ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "manifest.json"
 SKINS = ROOT / "skins"
 
-# A single push should never legitimately rewrite a big slice of the set. Above this, stop
-# and make a human look - each upload costs quota and replaces a working signature.
-MAX_UPLOADS = 50
+# Replacing an existing skin throws away a texture and signature that were working, so a
+# push that rewrites a big slice of the set is almost always a mistake and stops here.
+#
+# Adding new skins is not capped: a new name has no signature to destroy, and the repo is
+# still being filled in batches of a hundred or more.
+MAX_REPLACEMENTS = 50
 
 
 def load_manifest():
@@ -97,12 +100,15 @@ def main():
     previous = load_manifest()
     changed, removed = plan(files, previous, args.force_all)
 
+    added = [n for n in changed if n not in previous]
+    replaced = [n for n in changed if n in previous]
+
     print(str(len(files)) + " skins on disk, " + str(len(previous)) + " in the manifest")
-    print(str(len(changed)) + " new or changed, " + str(len(removed)) + " removed")
+    print(str(len(added)) + " new, " + str(len(replaced)) + " replaced, " + str(len(removed)) + " removed")
     for name in changed:
         print("  + " + name + "  (" + files[name].relpath + ")")
     for name in removed:
-        print("  - " + name)
+        print("  - " + name + "  (REMOVED - any NPC still using this name falls back to the default skin)")
 
     if args.check:
         return 0
@@ -119,11 +125,12 @@ def main():
         print("manifest.json matches skins/")
         return 0
 
-    if len(changed) > MAX_UPLOADS and not args.force_all:
+    if len(replaced) > MAX_REPLACEMENTS and not args.force_all:
         print("")
-        print("refusing to upload " + str(len(changed)) + " skins in one run (limit " + str(MAX_UPLOADS) + ").",
-              file=sys.stderr)
-        print("re-run with --force-all if this really is intended.", file=sys.stderr)
+        print("refusing to replace " + str(len(replaced)) + " existing skins in one run (limit "
+              + str(MAX_REPLACEMENTS) + ").", file=sys.stderr)
+        print("each one discards a working texture and signature. Re-run with --force-all if "
+              "this really is intended.", file=sys.stderr)
         return 1
 
     key = mineskin.api_key() if changed else None
