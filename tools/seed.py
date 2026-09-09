@@ -10,6 +10,11 @@ indefinitely, so re-uploading would regenerate all 499 for no reason and throw
 away the provenance of skins that have worked for years.
 
     python tools/seed.py --plugin ../minescape.me
+
+It writes a flat skins/; tools/classify.py then sorts those into region folders.
+
+The enum has since been deleted from the plugin, so this needs a checkout from before
+that. It is kept so the seed stays reproducible and auditable, not because it is run.
 """
 
 import argparse
@@ -65,6 +70,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--plugin", required=True, help="path to the minescape.me checkout")
     ap.add_argument("--out", default=".", help="repository root to write into")
+    ap.add_argument("--force", action="store_true", help="re-seed even though region folders exist")
     args = ap.parse_args()
 
     skin_dir = Path(args.plugin) / SKIN_PACKAGE
@@ -73,6 +79,14 @@ def main():
 
     root = Path(args.out)
     skins_out = root / "skins"
+
+    # This seeded the repository once, into a flat skins/. Skins now live in region
+    # folders, so re-running it would delete that organisation along with the files.
+    if any(p.is_dir() for p in skins_out.glob("*")) and not args.force:
+        sys.exit("skins/ already holds region folders - seeding again would delete them. "
+                 "Pass --force only if you really mean to re-seed from scratch, and re-run "
+                 "tools/classify.py afterwards.")
+
     if skins_out.exists():
         shutil.rmtree(skins_out)
     skins_out.mkdir(parents=True)

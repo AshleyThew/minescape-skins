@@ -1,0 +1,949 @@
+{
+  "ADAM": {
+    "region": "misthalin",
+    "npc": "Adam (Ironman tutor)"
+  },
+  "AFFLICTED_LEVEL_30": {
+    "region": "morytania",
+    "npc": "Afflicted"
+  },
+  "AFFLICTED_LEVEL_32": {
+    "region": "morytania",
+    "npc": "Afflicted"
+  },
+  "AFFLICTED_LEVEL_34": {
+    "region": "morytania",
+    "npc": "Afflicted"
+  },
+  "AFFLICTED_LEVEL_36": {
+    "region": "morytania",
+    "npc": "Afflicted"
+  },
+  "AHRIM_THE_BLIGHTED": {
+    "region": "morytania",
+    "npc": "Ahrim the Blighted"
+  },
+  "AIR_ELEMENTAL": {
+    "region": "kandarin",
+    "npc": "Air elemental"
+  },
+  "ALEXIS": {
+    "region": "morytania",
+    "npc": "Alexis"
+  },
+  "ALKHARIDGUARD": {
+    "region": "kharidian_desert",
+    "npc": "Al-Kharid guard"
+  },
+  "ALOMONE": {
+    "region": "kandarin",
+    "npc": "Alomone"
+  },
+  "ARCHER": {
+    "region": "multi",
+    "npc": "Archer"
+  },
+  "ARTHUR_THE_CLUE_HUNTER": {
+    "region": "misthalin",
+    "npc": "Arthur the Clue Hunter"
+  },
+  "BARFY_BILL": {
+    "region": "misthalin",
+    "npc": "Barfy Bill"
+  },
+  "BARTENDER": {
+    "region": "multi",
+    "npc": "Bartender"
+  },
+  "BERAEK": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "BERNALD": {
+    "region": "asgarnia",
+    "npc": "Bernald"
+  },
+  "BLACK_HEATHER": {
+    "region": "wilderness",
+    "npc": "Black Heather"
+  },
+  "BLAEC": {
+    "region": "other",
+    "npc": "Blaec"
+  },
+  "BOB": {
+    "region": "misthalin",
+    "npc": "Bob"
+  },
+  "BORIS": {
+    "region": "morytania",
+    "npc": "Boris"
+  },
+  "BREOCA": {
+    "region": "asgarnia",
+    "npc": "Breoca"
+  },
+  "BRIMHAVEN_PIRATE": {
+    "region": "karamja",
+    "npc": "Pirate (Brimhaven)"
+  },
+  "CAPTAIN_TOCK": {
+    "region": "feldip_hills",
+    "npc": "Captain Tock"
+  },
+  "CARLA": {
+    "region": "kandarin",
+    "npc": "Carla"
+  },
+  "CHANCY": {
+    "region": "misthalin",
+    "npc": "Chancy"
+  },
+  "CHAOS_DRUID": {
+    "region": "multi",
+    "npc": "Chaos druid"
+  },
+  "CHAOS_FANATIC": {
+    "region": "wilderness",
+    "npc": "Chaos Fanatic"
+  },
+  "CHARLIE": {
+    "region": "kandarin",
+    "npc": "Charlie"
+  },
+  "CHARLIE_THE_COOK": {
+    "region": "karamja",
+    "npc": "Charlie the cook"
+  },
+  "CHARLIE_THE_TRAMP": {
+    "region": "misthalin",
+    "npc": "Charlie the Tramp"
+  },
+  "CHARTER_CREWMEMBER_1": {
+    "region": "multi",
+    "npc": "Trader Crewmember"
+  },
+  "CHARTER_CREWMEMBER_2": {
+    "region": "multi",
+    "npc": "Trader Crewmember"
+  },
+  "CHILD_WEST_ARDOUGNE_VARIANT_2": {
+    "region": "kandarin",
+    "npc": "Child (West Ardougne)"
+  },
+  "CLIVET": {
+    "region": "kandarin",
+    "npc": "Clivet"
+  },
+  "COLONEL_RADICK": {
+    "region": "kandarin",
+    "npc": "Colonel Radick"
+  },
+  "CONFUSED_BARBARIAN": {
+    "region": "kandarin",
+    "npc": "Confused barbarian"
+  },
+  "COOKING_TUTOR": {
+    "region": "misthalin",
+    "npc": "Cooking tutor"
+  },
+  "COUNCILLOR_HALGRAVE": {
+    "region": "kandarin",
+    "npc": "Councillor Halgrive"
+  },
+  "CRAFTING_TUTOR": {
+    "region": "misthalin",
+    "npc": "Crafting tutor"
+  },
+  "CRAZY_ARCHAEOLOGIST": {
+    "region": "wilderness",
+    "npc": "Crazy archaeologist"
+  },
+  "CRONE": {
+    "region": "asgarnia",
+    "npc": "Crone"
+  },
+  "CURATOR_HAIG_HALEN": {
+    "region": "misthalin",
+    "npc": "Curator Haig Halen"
+  },
+  "CUSTOMS_OFFICER": {
+    "region": "karamja",
+    "npc": "Customs officer"
+  },
+  "DHAROK_THE_WRETCHED": {
+    "region": "morytania",
+    "npc": "Dharok the Wretched"
+  },
+  "DOCTOR_ORBON": {
+    "region": "kandarin",
+    "npc": "Doctor Orbon"
+  },
+  "DONIE": {
+    "region": "misthalin",
+    "npc": "Donie"
+  },
+  "DOOMSAYER": {
+    "region": "misthalin",
+    "npc": "Doomsayer"
+  },
+  "DR_FENKENSTRAIN": {
+    "region": "morytania",
+    "npc": "Dr Fenkenstrain"
+  },
+  "DUKE_HORACIO": {
+    "region": "misthalin",
+    "npc": "Duke Horacio"
+  },
+  "DUKE_HORATIO": {
+    "region": "misthalin",
+    "npc": "Duke Horacio"
+  },
+  "DUNSTAN": {
+    "region": "asgarnia",
+    "npc": "Dunstan"
+  },
+  "DURIAL321": {
+    "region": "asgarnia",
+    "npc": "Durial321"
+  },
+  "EADBURG": {
+    "region": "asgarnia",
+    "npc": "Eadburg"
+  },
+  "EARTH_ELEMENTAL": {
+    "region": "kandarin",
+    "npc": "Earth elemental"
+  },
+  "EARTH_WARRIOR": {
+    "region": "wilderness",
+    "npc": "Earth warrior"
+  },
+  "ELENA": {
+    "region": "kandarin",
+    "npc": "Elena"
+  },
+  "ELLAMARIA": {
+    "region": "misthalin",
+    "npc": "Queen Ellamaria"
+  },
+  "ELLIE": {
+    "region": "kandarin",
+    "npc": "Ellie"
+  },
+  "ENIOLA": {
+    "region": "kandarin",
+    "npc": "Eniola"
+  },
+  "EOHRIE": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "EVE": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "EXAMINER": {
+    "region": "misthalin",
+    "npc": "Examiner"
+  },
+  "FARMER_BRUMTY": {
+    "region": "kandarin",
+    "npc": "Farmer Brumty"
+  },
+  "FAT_TONY": {
+    "region": "wilderness",
+    "npc": "Fat Tony"
+  },
+  "FEMALE_BARBARIAN": {
+    "region": "multi",
+    "npc": "Barbarian"
+  },
+  "FEMALE_JACK_LANTERN": {
+    "region": "other",
+    "npc": "Jack lantern"
+  },
+  "FEMALE_SKELETON": {
+    "region": "multi",
+    "npc": "Skeleton"
+  },
+  "FIGHTSLAVE": {
+    "region": "kandarin",
+    "npc": "Slave (Fight Arena)"
+  },
+  "FIRE_ELEMENTAL": {
+    "region": "multi",
+    "npc": "Fire elemental"
+  },
+  "FLAX_KEEPER": {
+    "region": "kandarin",
+    "npc": "Flax keeper"
+  },
+  "FORESTER": {
+    "region": "multi",
+    "npc": "Forester",
+    "confidence": "low"
+  },
+  "FRANCOIS": {
+    "region": "feldip_hills",
+    "npc": "Francois"
+  },
+  "FRINCOS": {
+    "region": "asgarnia",
+    "npc": "Frincos"
+  },
+  "FRITZ_THE_GLASSBLOWER": {
+    "region": "asgarnia",
+    "npc": "Fritz the Glassblower"
+  },
+  "GARDNER_GHOST": {
+    "region": "morytania",
+    "npc": "Gardener Ghost"
+  },
+  "GEE": {
+    "region": "misthalin",
+    "npc": "Gee"
+  },
+  "GEORGY": {
+    "region": "morytania",
+    "npc": "Georgy"
+  },
+  "GHOUL": {
+    "region": "morytania",
+    "npc": "Ghoul"
+  },
+  "GNOCCI_THE_COOK": {
+    "region": "feldip_hills",
+    "npc": "Gnocci the Cook"
+  },
+  "GRIP": {
+    "region": "karamja",
+    "npc": "Grip"
+  },
+  "GRUBOR": {
+    "region": "karamja",
+    "npc": "Grubor"
+  },
+  "GUARD_BANDY_CAMP": {
+    "region": "wilderness",
+    "npc": "Guard Bandit"
+  },
+  "GUARD_SEERS": {
+    "region": "kandarin",
+    "npc": "Guard (Seers' Village)"
+  },
+  "GUIDOR": {
+    "region": "misthalin",
+    "npc": "Guidor"
+  },
+  "GUTHAN_THE_INFESTED": {
+    "region": "morytania",
+    "npc": "Guthan the Infested"
+  },
+  "HAJEDY": {
+    "region": "karamja",
+    "npc": "Hajedy"
+  },
+  "HAM_GUARD_12": {
+    "region": "misthalin",
+    "npc": "H.A.M. Guard"
+  },
+  "HAM_GUARD_18": {
+    "region": "misthalin",
+    "npc": "H.A.M. Guard"
+  },
+  "HAM_GUARD_22": {
+    "region": "misthalin",
+    "npc": "H.A.M. Guard"
+  },
+  "HANS": {
+    "region": "misthalin",
+    "npc": "Hans"
+  },
+  "HAZEEL": {
+    "region": "kandarin",
+    "npc": "Hazeel"
+  },
+  "HEAD_THIEF": {
+    "region": "kandarin",
+    "npc": "Head Thief"
+  },
+  "HENGRAD": {
+    "region": "kandarin",
+    "npc": "Hengrad"
+  },
+  "HERO": {
+    "region": "kandarin",
+    "npc": "Hero"
+  },
+  "HIGH_PRIEST": {
+    "region": "asgarnia",
+    "npc": "High Priest (Entrana)"
+  },
+  "HILD": {
+    "region": "asgarnia",
+    "npc": "Hild"
+  },
+  "HOGST": {
+    "region": "other",
+    "npc": "Hogst"
+  },
+  "HYGD": {
+    "region": "asgarnia",
+    "npc": "Hygd"
+  },
+  "IMRE": {
+    "region": "morytania",
+    "npc": "Imre"
+  },
+  "INFERNAL_MAGE": {
+    "region": "morytania",
+    "npc": "Infernal Mage"
+  },
+  "INFORMATION_CLERK": {
+    "region": "misthalin",
+    "npc": "Information clerk"
+  },
+  "IRINA": {
+    "region": "morytania",
+    "npc": "Irina"
+  },
+  "IVRIGAR_THE_NECROMANCER": {
+    "region": "kandarin",
+    "npc": "Invrigar the Necromancer"
+  },
+  "JADE": {
+    "region": "asgarnia",
+    "npc": "Jade (Warriors' Guild)"
+  },
+  "JERICO": {
+    "region": "kandarin",
+    "npc": "Jerico"
+  },
+  "JOE": {
+    "region": "kandarin",
+    "npc": "Joe (Fight Arena)",
+    "confidence": "low"
+  },
+  "JOHNNY_THE_BEARD": {
+    "region": "misthalin",
+    "npc": "Jonny the Beard"
+  },
+  "JOHNY_THE_BEARD": {
+    "region": "misthalin",
+    "npc": "Jonny the Beard"
+  },
+  "JOSEPH": {
+    "region": "morytania",
+    "npc": "Joseph"
+  },
+  "JUDGE": {
+    "region": "kandarin",
+    "npc": "Court judge"
+  },
+  "JUSTIN_SERVIL": {
+    "region": "kandarin",
+    "npc": "Justin Servil"
+  },
+  "KANGAI_MAU": {
+    "region": "karamja",
+    "npc": "Kangai Mau"
+  },
+  "KARIL_THE_TAINTED": {
+    "region": "morytania",
+    "npc": "Karil the Tainted"
+  },
+  "KAZARD_GUARD": {
+    "region": "kandarin",
+    "npc": "Khazard Guard"
+  },
+  "KELVIN": {
+    "region": "kandarin",
+    "npc": "Kelvin"
+  },
+  "KENT": {
+    "region": "kandarin",
+    "npc": "Kent"
+  },
+  "KHAZARD_COMMANDER": {
+    "region": "kandarin",
+    "npc": "Khazard commander"
+  },
+  "KHAZARD_TROOPER": {
+    "region": "kandarin",
+    "npc": "Khazard trooper"
+  },
+  "KILRON": {
+    "region": "kandarin",
+    "npc": "Kilron"
+  },
+  "KING_ARTHUR": {
+    "region": "kandarin",
+    "npc": "King Arthur"
+  },
+  "KNIGHT_OF_ARDOUGNE": {
+    "region": "kandarin",
+    "npc": "Knight of Ardougne"
+  },
+  "KSENIA": {
+    "region": "morytania",
+    "npc": "Ksenia"
+  },
+  "LANTHUS": {
+    "region": "other",
+    "npc": "Lanthus"
+  },
+  "LARRY": {
+    "region": "kandarin",
+    "npc": "Larry"
+  },
+  "LA_SABRE": {
+    "region": "morytania",
+    "npc": "Le-sabre"
+  },
+  "LEON": {
+    "region": "kandarin",
+    "npc": "Leon"
+  },
+  "LEV": {
+    "region": "morytania",
+    "npc": "Lev"
+  },
+  "LILIYA": {
+    "region": "morytania",
+    "npc": "Liliya"
+  },
+  "LOCAL": {
+    "region": "kandarin",
+    "npc": "Spectator (Fight Arena)"
+  },
+  "LOCAL_LEVEL_30": {
+    "region": "kandarin",
+    "npc": "Spectator (Fight Arena)"
+  },
+  "LOCAL_LEVEL_32": {
+    "region": "kandarin",
+    "npc": "Spectator (Fight Arena)"
+  },
+  "LOCAL_LEVEL_34": {
+    "region": "kandarin",
+    "npc": "Spectator (Fight Arena)"
+  },
+  "LOCAL_LEVEL_36": {
+    "region": "kandarin",
+    "npc": "Spectator (Fight Arena)"
+  },
+  "LOST_BARBARIAN": {
+    "region": "kandarin",
+    "npc": "Lost barbarian"
+  },
+  "LUCIEN": {
+    "region": "kandarin",
+    "npc": "Lucien"
+  },
+  "LUMBRIDGE_GUIDE": {
+    "region": "misthalin",
+    "npc": "Lumbridge Guide"
+  },
+  "MAGIC_COMBAT_TUTOR": {
+    "region": "misthalin",
+    "npc": "Magic combat tutor"
+  },
+  "MALE_JACK_LANTERN": {
+    "region": "other",
+    "npc": "Jack lantern"
+  },
+  "MALE_SKELETON": {
+    "region": "multi",
+    "npc": "Skeleton"
+  },
+  "MAN_WEST_ARDOUGNE": {
+    "region": "kandarin",
+    "npc": "Man (West Ardougne)"
+  },
+  "MAN_WEST_ARDOUGNE_VARIANT_2": {
+    "region": "kandarin",
+    "npc": "Man (West Ardougne)"
+  },
+  "MARTIN_THE_MASTER_GARDENER": {
+    "region": "misthalin",
+    "npc": "Martin the Master Gardener"
+  },
+  "MELEE_COMBAT_TUTOR": {
+    "region": "misthalin",
+    "npc": "Melee combat tutor"
+  },
+  "MERLIN": {
+    "region": "kandarin",
+    "npc": "Merlin"
+  },
+  "MILLA": {
+    "region": "morytania",
+    "npc": "Milla"
+  },
+  "MONK_OF_ZAMORAK": {
+    "region": "multi",
+    "npc": "Monk of Zamorak"
+  },
+  "MUGGER": {
+    "region": "multi",
+    "npc": "Mugger"
+  },
+  "MUSEUM_GUARD": {
+    "region": "misthalin",
+    "npc": "Museum guard"
+  },
+  "NECROVARUS": {
+    "region": "morytania",
+    "npc": "Necrovarus"
+  },
+  "NIKITA": {
+    "region": "morytania",
+    "npc": "Nikita"
+  },
+  "NIKOLAI": {
+    "region": "morytania",
+    "npc": "Nikolai"
+  },
+  "NORA_T_HAGG": {
+    "region": "asgarnia",
+    "npc": "Nora T. Hagg"
+  },
+  "OCGA": {
+    "region": "asgarnia",
+    "npc": "Ocga"
+  },
+  "OLDEST_BROTHER": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "OLD_CRONE": {
+    "region": "morytania",
+    "npc": "Old crone"
+  },
+  "OLIVIA": {
+    "region": "misthalin",
+    "npc": "Olivia"
+  },
+  "OMART": {
+    "region": "kandarin",
+    "npc": "Omart"
+  },
+  "PALADIN": {
+    "region": "kandarin",
+    "npc": "Paladin"
+  },
+  "PENDA": {
+    "region": "asgarnia",
+    "npc": "Penda"
+  },
+  "PHANTUWTI_FANSTUWI_FARSIGHT": {
+    "region": "kandarin",
+    "npc": "Phantuwti Fanstuwi Farsight"
+  },
+  "PIRATE": {
+    "region": "multi",
+    "npc": "Pirate"
+  },
+  "PIRATE_GUARD": {
+    "region": "karamja",
+    "npc": "Pirate Guard"
+  },
+  "PLAGUE_GUARD": {
+    "region": "kandarin",
+    "confidence": "low"
+  },
+  "POISON_SALESMAN": {
+    "region": "kandarin",
+    "npc": "Poison Salesman"
+  },
+  "PRAYER_TUTOR": {
+    "region": "misthalin",
+    "npc": "Prayer tutor"
+  },
+  "PRIEST_ARDOUGNE": {
+    "region": "kandarin",
+    "npc": "Priest (East Ardougne)"
+  },
+  "PROSECUTOR": {
+    "region": "kandarin",
+    "npc": "Prosecutor"
+  },
+  "RACHAEL": {
+    "region": "asgarnia",
+    "npc": "Rachael"
+  },
+  "RANGED_COMBAT_TUTOR": {
+    "region": "misthalin",
+    "npc": "Ranged combat tutor"
+  },
+  "REF": {
+    "region": "asgarnia",
+    "npc": "Ref"
+  },
+  "RELDO": {
+    "region": "misthalin",
+    "npc": "Reldo"
+  },
+  "RESEARCHER": {
+    "region": "misthalin",
+    "npc": "Researcher"
+  },
+  "RICK": {
+    "region": "kandarin",
+    "npc": "Rick"
+  },
+  "RICK_PUMPKIN": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "ROSS": {
+    "region": "kandarin",
+    "npc": "Ross"
+  },
+  "SALARIN_THE_TWISTED": {
+    "region": "kandarin",
+    "npc": "Salarin the twisted"
+  },
+  "SAM": {
+    "region": "great_kourend",
+    "npc": "Sam"
+  },
+  "SEER": {
+    "region": "kandarin",
+    "npc": "Seer"
+  },
+  "SEERS_BARTENDER": {
+    "region": "kandarin",
+    "npc": "Bartender (Forester's Arms)"
+  },
+  "SERVANT": {
+    "region": "kandarin",
+    "npc": "Servant"
+  },
+  "SIGBERT_THE_ADVENTURER": {
+    "region": "kandarin",
+    "npc": "Sigbert the Adventurer"
+  },
+  "SIGMUND": {
+    "region": "misthalin",
+    "npc": "Sigmund"
+  },
+  "SIN_SEER": {
+    "region": "kandarin",
+    "npc": "Sin Seer"
+  },
+  "SIR_BEDIVERE": {
+    "region": "kandarin",
+    "npc": "Sir Bedivere"
+  },
+  "SMITHING_APPRENTICE": {
+    "region": "misthalin",
+    "npc": "Smithing apprentice"
+  },
+  "SOFIYA": {
+    "region": "morytania",
+    "npc": "Sofiya"
+  },
+  "SOLDIER": {
+    "region": "multi",
+    "npc": "Soldier",
+    "confidence": "low"
+  },
+  "SOLDIER_YANILLE": {
+    "region": "kandarin",
+    "npc": "Soldier (Yanille)"
+  },
+  "SPEEDY_KEITH": {
+    "region": "wilderness",
+    "npc": "Speedy Keith"
+  },
+  "SPRIA": {
+    "region": "misthalin",
+    "npc": "Spria"
+  },
+  "SRAM": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "SVETLANA": {
+    "region": "morytania",
+    "npc": "Svetlana"
+  },
+  "TANNER": {
+    "region": "multi",
+    "npc": "Tanner"
+  },
+  "THESSALIA": {
+    "region": "misthalin",
+    "npc": "Thessalia"
+  },
+  "THE_LADY_OF_THE_LAKE": {
+    "region": "asgarnia",
+    "npc": "The Lady of the Lake"
+  },
+  "THUG": {
+    "region": "wilderness",
+    "npc": "Thug"
+  },
+  "TICKET_MERCHANT": {
+    "region": "kandarin",
+    "npc": "Ticket Merchant"
+  },
+  "TORAG_THE_CORRUPTED": {
+    "region": "morytania",
+    "npc": "Torag the Corrupted"
+  },
+  "TORTURED_SOUL": {
+    "region": "morytania",
+    "npc": "Tortured soul"
+  },
+  "TOSTIG": {
+    "region": "asgarnia",
+    "npc": "Tostig"
+  },
+  "TOWN_CRIER_SEERS": {
+    "region": "kandarin",
+    "npc": "Town Crier (Seers' Village)"
+  },
+  "TRADER_CREW_MEMBER": {
+    "region": "multi",
+    "npc": "Trader Crewmember"
+  },
+  "TRADER_STAN": {
+    "region": "asgarnia",
+    "npc": "Trader Stan"
+  },
+  "TRAMP_YANILLE": {
+    "region": "kandarin",
+    "npc": "Tramp (Yanille)"
+  },
+  "TRIBESMAN": {
+    "region": "karamja",
+    "npc": "Tribesman"
+  },
+  "TROBERT": {
+    "region": "karamja",
+    "npc": "Trobert"
+  },
+  "TWO_PINTS": {
+    "region": "kandarin",
+    "npc": "Two-pints"
+  },
+  "UNFERTH": {
+    "region": "asgarnia",
+    "npc": "Unferth"
+  },
+  "VERA": {
+    "region": "morytania",
+    "npc": "Vera"
+  },
+  "VERAC_THE_DEFILED": {
+    "region": "morytania",
+    "npc": "Verac the Defiled"
+  },
+  "WATCHMAN": {
+    "region": "kandarin",
+    "npc": "Watchman"
+  },
+  "WATER_ELEMENTAL": {
+    "region": "kandarin",
+    "npc": "Water elemental"
+  },
+  "WEREWOLF": {
+    "region": "morytania",
+    "npc": "Werewolf"
+  },
+  "WINSTAN": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "WISE_OLD_MAN": {
+    "region": "misthalin",
+    "npc": "Wise Old Man"
+  },
+  "WITCHAVEN_VILLAGER_OVERALLS": {
+    "region": "kandarin",
+    "npc": "Villager (Witchaven)"
+  },
+  "WIZARD_WATCHTOWER_1": {
+    "region": "kandarin",
+    "npc": "Wizard (Watchtower)"
+  },
+  "WIZARD_WATCHTOWER_2": {
+    "region": "kandarin",
+    "npc": "Wizard (Watchtower)"
+  },
+  "WOMAN_WARRIOR": {
+    "region": "multi",
+    "npc": "Warrior (Thieving)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L12": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L14": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L3_VARIANT_1": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L3_VARIANT_2": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L3_VARIANT_3": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L4_VARIANT_1": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOMAN_WEST_ARDOUGNE_L4_VARIANT_2": {
+    "region": "kandarin",
+    "npc": "Woman (West Ardougne)"
+  },
+  "WOODSMAN_TUTOR": {
+    "region": "misthalin",
+    "npc": "Woodsman tutor"
+  },
+  "YADVIGA": {
+    "region": "morytania",
+    "npc": "Yadviga"
+  },
+  "YELDIVE": {
+    "region": "other",
+    "npc": "Yeldive"
+  },
+  "YOUNGEST_BROTHER": {
+    "region": "other",
+    "confidence": "low"
+  },
+  "YURI": {
+    "region": "morytania",
+    "npc": "Yuri"
+  },
+  "ZAMORAK_CRAFTER": {
+    "region": "kandarin",
+    "npc": "Zamorak crafter"
+  },
+  "ZAMORAK_MAGE": {
+    "region": "kandarin",
+    "npc": "Zamorak mage"
+  },
+  "ZAMORAK_RANGER": {
+    "region": "kandarin",
+    "npc": "Zamorak ranger"
+  },
+  "ZAMORAK_WARRIOR": {
+    "region": "kandarin",
+    "npc": "Zamorak warrior"
+  },
+  "ZOJA": {
+    "region": "morytania",
+    "npc": "Zoja"
+  }
+}

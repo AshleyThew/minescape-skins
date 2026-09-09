@@ -2,20 +2,48 @@
 
 Source images for every NPC and player skin on [MineScape](https://minescape.me), and the pipeline that turns them into something the server can load at runtime.
 
-Each skin is one PNG under [`skins/`](skins), named after the key the server looks it up by. Open a pull request and CI uploads the changed images to [MineSkin](https://mineskin.org) and updates `manifest.json` on your branch; merging publishes that manifest as a GitHub release. The server plugin pulls the release on startup, verifies its SHA-256, and swaps the skins in — no plugin rebuild, no redeploy.
+Each skin is one PNG under [`skins/`](skins), filed by OSRS region and named after the key the server looks it up by. Open a pull request and CI uploads the changed images to [MineSkin](https://mineskin.org) and updates `manifest.json` on your branch; merging publishes that manifest as a GitHub release. The server plugin pulls the release on startup, verifies its SHA-256, and swaps the skins in — no plugin rebuild, no redeploy.
 
 ## Adding or changing a skin
 
 `main` takes pull requests only, so every change goes through one.
 
-1. Branch, and drop a **64×64 PNG** into `skins/`, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
+1. Branch, and drop a **64×64 PNG** into the region folder the NPC belongs to, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/kandarin/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
 2. Open a PR. CI validates the image, uploads the changed ones to MineSkin, and **commits the updated `manifest.json` onto your PR branch** — so the texture and signature the server will use are visible in the diff before anything ships.
 3. Merge. CI publishes the manifest as a release; it uploads nothing, because the PR already did.
 4. The change reaches every region on the next server start, or immediately with `/skins pull`.
 
 A PR cannot merge while `manifest.json` disagrees with the images beside it, and `main` refuses to publish a manifest that does not describe them.
 
-To replace an existing skin, overwrite its PNG — keep the filename and the server keeps the reference.
+To replace an existing skin, overwrite its PNG — keep the filename and the server keeps the reference. Moving a skin to a different region folder is free: it renames nothing and costs no upload.
+
+## Region folders
+
+Folders are OSRS world regions, not cities:
+
+`asgarnia` · `feldip_hills` · `fremennik_province` · `great_kourend` · `kandarin` · `karamja` · `kebos_lowlands` · `kharidian_desert` · `misthalin` · `morytania` · `tirannwn` · `troll_country` · `varlamore` · `wilderness`
+
+plus two that are not places:
+
+- **`multi`** — used across more than one region: generic NPCs (guards, bartenders, `MAN`, `WOMAN`), the default player skins, monsters that spawn all over.
+- **`other`** — Tutorial Island, Zanaris, the Abyss, instanced and minigame-only areas, and anything that could not be placed confidently.
+
+**The folder is organisation only.** The server resolves a skin by name and never sees the region, which is why **a name must be unique across every folder** — two files called `BOB.png` in different regions is an error, and CI fails the PR and comments which files clashed.
+
+Skins were placed by [`tools/classify.py`](tools/classify.py): first from the MineScape dialogue tree, which is filed by city and says where this server actually uses each skin, and otherwise from [`tools/region_overrides.json`](tools/region_overrides.json), researched from the OSRS Wiki. Correct a placement by moving the file (and the override entry, if it has one).
+
+## Slim (Alex) skins
+
+End the filename `.slim.png` for a 3px-arm Alex model instead of Steve:
+
+```
+skins/misthalin/BOB.slim.png   ->  skin name BOB, Alex model
+skins/misthalin/BOB.png        ->  skin name BOB, Steve model
+```
+
+The `.slim` is a marker, not part of the name — so those two are a **duplicate name clash**, not two different skins.
+
+The model is baked into the signed texture Mojang returns, so switching a skin between Steve and Alex re-uploads it even when the image bytes are identical.
 
 ### Why PNG and not JPG
 
@@ -39,13 +67,15 @@ Generated, committed, and published as a release asset.
       "signature":    "gGlNQhdpzoXm3Iyt…",
       "image_sha256": "…",
       "texture_url":  "https://textures.minecraft.net/texture/…",
+      "region":       "misthalin",
+      "slim":         true,
       "display":      "The Noob"
     }
   }
 }
 ```
 
-`texture` and `signature` are the Mojang texture property and its signature — what the server puts on a `GameProfile`. `display` is an optional label; without it the server derives one from the name.
+`texture` and `signature` are the Mojang texture property and its signature — what the server puts on a `GameProfile`. `display` is an optional label; without it the server derives one from the name. `region` and `slim` mirror the file's folder and its `.slim.png` suffix, and are re-derived on every run, so moving or renaming a file updates the manifest without costing an upload. `slim` is omitted for Steve-model skins.
 
 `image_sha256` is the digest of the PNG in this repo, and it is what makes incremental uploads work: CI re-uploads a skin only when its image digest changes. **Unchanged entries are copied through byte-for-byte, so working signatures are never regenerated.**
 
@@ -58,6 +88,9 @@ Generated, committed, and published as a release asset.
 | `tools/build_manifest.py --verify` | Same, but exits non-zero if the manifest and the images disagree. Gates PRs and releases. |
 | `tools/build_manifest.py --upload` | Uploads changed skins and rewrites the manifest. Used by CI. |
 | `tools/upload.py` | MineSkin v2 client. |
+| `tools/classify.py` | Sorts skins into region folders from the dialogue tree plus the wiki overrides. |
+| `tools/regions.py` | The region list, and the city-to-region map used for classification. |
+| `tools/skinfile.py` | Resolves a path to its skin name, region and model variant. |
 | `tools/seed.py` | One-time bootstrap from the old `Skins.java` enum. Kept so the seed stays reproducible. |
 | `tools/skins_source.py` | Parser for that enum. |
 

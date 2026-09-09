@@ -5,9 +5,11 @@ on:
     branches: [main]
 
 # main only accepts pull requests, so the manifest has to be brought up to date here
-# rather than pushed to main afterwards. Writing to the PR branch is what needs the token.
+# rather than pushed to main afterwards. Writing to the PR branch needs contents: write,
+# and the validation report needs pull-requests: write.
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: skins-pr-${{ github.event.pull_request.number }}
@@ -31,9 +33,37 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Runs before anything is uploaded, so a malformed PNG costs no MineSkin quota.
+      # Never fails the job directly - the report is posted to the PR first, so a
+      # contributor sees which files are wrong rather than just a red cross.
       - name: Validate skins
-        run: python tools/validate.py
+        id: validate
+        continue-on-error: true
+        run: python tools/validate.py --markdown "$RUNNER_TEMP/report.md"
+
+      - name: Report validation to the pull request
+        if: steps.validate.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          MARKER: '<!-- skins-validate -->'
+        run: |
+          printf '%s\n\n' "$MARKER" | cat - "$RUNNER_TEMP/report.md" > "$RUNNER_TEMP/comment.md"
+          # One sticky comment per PR: update the previous report instead of stacking new ones.
+          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" \
+            --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | .[0].id // empty")
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" \
+              -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
+          else
+            gh api -X POST "repos/${{ github.repository }}/issues/$PR/comments" \
+              -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
+          fi
+
+      - name: Fail on invalid skins
+        if: steps.validate.outcome == 'failure'
+        run: |
+          echo "Skin validation failed - see the comment on this pull request." >&2
+          exit 1
 
       # A fork's workflow gets no secrets and cannot push, so it only reports.
       - name: Report pending uploads
