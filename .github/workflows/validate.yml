@@ -40,23 +40,28 @@ jobs:
         continue-on-error: true
         run: python tools/validate.py --markdown "$RUNNER_TEMP/report.md"
 
+      # Runs whether validation passed or failed. A clean PR gets no comment, but one that
+      # was failing and has been fixed sees its report flip to "passed" instead of leaving
+      # a stale wall of errors behind.
       - name: Report validation to the pull request
-        if: steps.validate.outcome == 'failure'
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           MARKER: '<!-- skins-validate -->'
+          FAILED: ${{ steps.validate.outcome == 'failure' }}
         run: |
           printf '%s\n\n' "$MARKER" | cat - "$RUNNER_TEMP/report.md" > "$RUNNER_TEMP/comment.md"
           # One sticky comment per PR: update the previous report instead of stacking new ones.
-          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" \
+          existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
             --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | .[0].id // empty")
           if [ -n "$existing" ]; then
             gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$existing" \
               -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
-          else
+          elif [ "$FAILED" = "true" ]; then
             gh api -X POST "repos/${{ github.repository }}/issues/$PR/comments" \
               -F body=@"$RUNNER_TEMP/comment.md" >/dev/null
+          else
+            echo "Validation passed and there is no previous report to update - no comment needed."
           fi
 
       - name: Fail on invalid skins
