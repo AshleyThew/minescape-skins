@@ -4,11 +4,11 @@ on:
   pull_request:
     branches: [main]
 
-# main only accepts pull requests, so the manifest has to be brought up to date here
-# rather than pushed to main afterwards. Writing to the PR branch needs contents: write,
-# and the validation report needs pull-requests: write.
+# Reads the repo and writes one comment. It deliberately holds no MineSkin key and
+# pushes nothing: uploads happen after merge, so a pull request that is revised ten
+# times or closed unmerged never costs quota.
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 concurrency:
@@ -22,9 +22,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.BOT_SECRET || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -70,33 +67,15 @@ jobs:
           echo "Skin validation failed - see the comment on this pull request." >&2
           exit 1
 
-      # A fork's workflow gets no secrets and cannot push, so it only reports.
-      - name: Report pending uploads
-        if: github.event.pull_request.head.repo.full_name != github.repository
-        run: |
-          python tools/build_manifest.py --check
-          echo "Fork PR: the manifest must be updated by a maintainer before this can merge."
-
-      - name: Upload changed skins and update the manifest
-        if: github.event.pull_request.head.repo.full_name == github.repository
+      # Read-only preview of what merging would send to MineSkin, diffed against the
+      # manifest the latest release published. No API key, nothing uploaded.
+      - name: Report what merging would upload
         env:
-          MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
-        run: python tools/build_manifest.py --upload
-
-      - name: Commit the manifest to this pull request
-        if: github.event.pull_request.head.repo.full_name == github.repository
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name 'MineScape-Bot'
-          git config user.email 'bot@minescape.me'
-          if git diff --quiet -- manifest.json; then
-            echo "Manifest already up to date."
+          if gh release download --repo "${{ github.repository }}" \
+               --pattern manifest.json --output "$RUNNER_TEMP/baseline.json" 2>/dev/null; then
+            python tools/build_manifest.py --check --baseline "$RUNNER_TEMP/baseline.json"
           else
-            git add manifest.json
-            git commit -m "Update skin manifest"
-            git push origin HEAD:${{ github.head_ref }}
-            echo "Pushed an updated manifest - review the texture/signature diff before merging."
+            echo "No release yet - every skin would be uploaded on merge."
           fi
-
-      # Guards the merge: main publishes straight from the committed manifest.
-      - name: Verify the manifest matches the images
-        run: python tools/build_manifest.py --verify

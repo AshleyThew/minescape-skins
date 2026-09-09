@@ -1,14 +1,18 @@
 """
-Rebuilds manifest.json from the PNGs under skins/.
+Rebuilds the skin manifest from the PNGs under skins/.
 
 A skin is only sent to MineSkin when its PNG content actually changed - the image_sha256
-recorded in the manifest is compared against the file on disk. Everything unchanged is
-copied through byte-for-byte, so signatures that have worked for years are never
-regenerated. Moving a skin between region folders is therefore free.
+recorded in the previous manifest is compared against the file on disk. Everything
+unchanged is copied through byte-for-byte, so signatures that have worked for years are
+never regenerated. Moving a skin between region folders is therefore free.
 
-    python tools/build_manifest.py --check     # report what would change, upload nothing
-    python tools/build_manifest.py --verify    # same, but fail if anything is out of sync
-    python tools/build_manifest.py --upload    # upload changed skins and rewrite the manifest
+The manifest is not kept in git: main takes pull requests only and CI cannot commit to it,
+so the published release is the store. --baseline points at the previous manifest (the
+release asset) and --output at where to write the new one.
+
+    python tools/build_manifest.py --check --baseline previous.json
+    python tools/build_manifest.py --verify --baseline previous.json
+    python tools/build_manifest.py --upload --baseline previous.json --output manifest.json
 """
 
 import argparse
@@ -27,7 +31,6 @@ import validate as validator
 from skinfile import iter_skins
 
 ROOT = Path(__file__).resolve().parent.parent
-MANIFEST = ROOT / "manifest.json"
 SKINS = ROOT / "skins"
 
 # Replacing an existing skin throws away a texture and signature that were working, so a
@@ -38,10 +41,11 @@ SKINS = ROOT / "skins"
 MAX_REPLACEMENTS = 50
 
 
-def load_manifest():
-    if not MANIFEST.exists():
+def load_manifest(path):
+    """The previous manifest's skins, or {} when there is none yet (the very first run)."""
+    if path is None or not Path(path).exists():
         return {}
-    return json.loads(MANIFEST.read_text(encoding="utf-8")).get("skins", {})
+    return json.loads(Path(path).read_text(encoding="utf-8")).get("skins", {})
 
 
 def texture_url(texture):
@@ -88,6 +92,8 @@ def main():
     group.add_argument("--verify", action="store_true", help="like --check, but fail if anything is out of sync")
     group.add_argument("--upload", action="store_true", help="upload changed skins and rewrite the manifest")
     ap.add_argument("--force-all", action="store_true", help="re-upload every skin (rarely correct)")
+    ap.add_argument("--baseline", type=Path, help="previous manifest to diff against (the release asset)")
+    ap.add_argument("--output", type=Path, help="where to write the new manifest (--upload only)")
     args = ap.parse_args()
 
     errors = validator.validate(SKINS)
@@ -97,7 +103,9 @@ def main():
         return 1
 
     files = current_skins()
-    previous = load_manifest()
+    previous = load_manifest(args.baseline)
+    if args.baseline and not Path(args.baseline).exists():
+        print("no baseline manifest at " + str(args.baseline) + " - treating every skin as new")
     changed, removed = plan(files, previous, args.force_all)
 
     added = [n for n in changed if n not in previous]
@@ -114,15 +122,13 @@ def main():
         return 0
 
     if args.verify:
-        # main is published straight from the committed manifest, so a PNG the manifest
-        # does not describe means the release would ship stale texture data.
         if changed or removed:
             print("")
-            print("manifest.json is out of sync with skins/ - it must be updated in the pull "
-                  "request that changes the images.", file=sys.stderr)
+            print("the published manifest does not match skins/ - merge to main to rebuild it.",
+                  file=sys.stderr)
             return 1
         print("")
-        print("manifest.json matches skins/")
+        print("the published manifest matches skins/")
         return 0
 
     if len(replaced) > MAX_REPLACEMENTS and not args.force_all:
@@ -168,12 +174,11 @@ def main():
 
     skins = dict(sorted(skins.items()))
 
-    # Leave the file completely alone when nothing changed. Rewriting it just to bump
-    # `generated` would change the manifest's SHA-256 on every run, which defeats the
-    # server's "same digest, nothing to download" shortcut.
-    if skins == previous and MANIFEST.exists():
+    # Writing an identical manifest with a fresh `generated` stamp would change its
+    # SHA-256, which defeats the server's "same digest, nothing to download" shortcut.
+    if skins == previous:
         print("")
-        print("nothing changed - manifest.json left untouched")
+        print("nothing changed - no new manifest written")
         return 0
 
     doc = {

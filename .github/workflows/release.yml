@@ -5,26 +5,30 @@ on:
     branches: [main]
     paths:
       - 'skins/**'
-      - 'manifest.json'
+      - 'tools/**'
       - '.github/workflows/release.yml'
   workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Re-upload every skin to MineSkin (rarely correct)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+# Each run reads the manifest the previous run published, so two runs must not overlap.
 concurrency:
   group: skins-release
   cancel-in-progress: false
 
 jobs:
   release:
-    name: Publish the manifest
+    name: Upload changed skins and publish
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
 
       - uses: actions/setup-python@v5
         with:
@@ -36,30 +40,46 @@ jobs:
       - name: Validate skins
         run: python tools/validate.py
 
-      # main takes pull requests only, so nothing is uploaded or committed here - the PR
-      # already did that. This just refuses to publish a manifest that does not describe
-      # the images beside it.
-      - name: Verify the manifest matches the images
-        run: python tools/build_manifest.py --verify
-
-      # A run triggered by a workflow file or manifest-only change should not mint a
-      # release identical to the last one.
-      - name: Decide whether to release
-        id: decide
+      # The manifest is not in git - main takes pull requests only, so CI cannot commit
+      # to it. The latest release asset is the store, and it is what the next diff is
+      # taken against.
+      - name: Fetch the published manifest
+        id: baseline
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "release=true" >> $GITHUB_OUTPUT
-            echo "No release exists yet - publishing."
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "release=true" >> $GITHUB_OUTPUT
-            echo "Manual run - publishing."
-          elif git diff --quiet HEAD^ HEAD -- manifest.json; then
-            echo "release=false" >> $GITHUB_OUTPUT
-            echo "manifest.json unchanged in this push - skipping."
+          if gh release download --repo "${{ github.repository }}" \
+               --pattern manifest.json --output baseline.json 2>/dev/null; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "Baseline: $(python -c "import json;print(len(json.load(open('baseline.json'))['skins']))") skins"
           else
+            echo "found=false" >> $GITHUB_OUTPUT
+            echo "No previous release - every skin will be uploaded."
+          fi
+
+      - name: Upload changed skins and build the manifest
+        env:
+          MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
+        run: |
+          args="--upload --output manifest.json"
+          if [ "${{ steps.baseline.outputs.found }}" = "true" ]; then
+            args="$args --baseline baseline.json"
+          fi
+          if [ "${{ inputs.force_all }}" = "true" ]; then
+            args="$args --force-all"
+          fi
+          python tools/build_manifest.py $args
+
+      # No new manifest means nothing changed, so the current release already describes
+      # these images and republishing would make every server re-download it.
+      - name: Decide whether to release
+        id: decide
+        run: |
+          if [ -f manifest.json ]; then
             echo "release=true" >> $GITHUB_OUTPUT
+          else
+            echo "release=false" >> $GITHUB_OUTPUT
+            echo "Nothing changed - keeping the current release."
           fi
 
       - name: Compute digest

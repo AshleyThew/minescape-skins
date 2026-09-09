@@ -2,18 +2,16 @@
 
 Source images for every NPC and player skin on [MineScape](https://minescape.me), and the pipeline that turns them into something the server can load at runtime.
 
-Each skin is one PNG under [`skins/`](skins), filed by OSRS region and named after the key the server looks it up by. Open a pull request and CI uploads the changed images to [MineSkin](https://mineskin.org) and updates `manifest.json` on your branch; merging publishes that manifest as a GitHub release. The server plugin pulls the release on startup, verifies its SHA-256, and swaps the skins in — no plugin rebuild, no redeploy.
+Each skin is one PNG under [`skins/`](skins), filed by OSRS region and named after the key the server looks it up by. A pull request is only checked; **merging** is what uploads the changed images to [MineSkin](https://mineskin.org) and publishes a new manifest as a GitHub release. The server plugin pulls that release on startup, verifies its SHA-256, and swaps the skins in — no plugin rebuild, no redeploy.
 
 ## Adding or changing a skin
 
 `main` takes pull requests only, so every change goes through one.
 
 1. Branch, and drop a **64×64 PNG** into the region folder the NPC belongs to, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/kandarin/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
-2. Open a PR. CI validates the image, uploads the changed ones to MineSkin, and **commits the updated `manifest.json` onto your PR branch** — so the texture and signature the server will use are visible in the diff before anything ships.
-3. Merge. CI publishes the manifest as a release; it uploads nothing, because the PR already did.
+2. Open a PR. CI validates names, regions, duplicates and image format, and comments on anything wrong. **Nothing is uploaded** — a PR you revise ten times, or close unmerged, costs no MineSkin quota. It also prints what merging *would* upload.
+3. Merge. CI uploads the changed images, rebuilds the manifest and publishes it as a release.
 4. The change reaches every region on the next server start, or immediately with `/skins pull`.
-
-A PR cannot merge while `manifest.json` disagrees with the images beside it, and `main` refuses to publish a manifest that does not describe them.
 
 To replace an existing skin, overwrite its PNG — keep the filename and the server keeps the reference. Moving a skin to a different region folder is free: it renames nothing and costs no upload.
 
@@ -53,7 +51,7 @@ Both 64×64 and the pre-1.8 64×32 layout are accepted — four skins (`DIANGO`,
 
 ## `manifest.json`
 
-Generated, committed, and published as a release asset.
+**Not stored in git.** `main` takes pull requests only, and a personal repository cannot grant GitHub Actions a bypass to commit there, so the published release *is* the store: each run reads the previous release's `manifest.json` as its baseline and publishes a new one. That is also what lets an unchanged skin keep its original texture and signature forever.
 
 ```json
 {
@@ -85,8 +83,10 @@ Generated, committed, and published as a release asset.
 |---|---|
 | `tools/validate.py` | Filename, PNG format and dimension checks. Runs on PRs and before any upload. |
 | `tools/build_manifest.py --check` | Reports which skins would be uploaded. Uploads nothing, needs no API key. |
-| `tools/build_manifest.py --verify` | Same, but exits non-zero if the manifest and the images disagree. Gates PRs and releases. |
-| `tools/build_manifest.py --upload` | Uploads changed skins and rewrites the manifest. Used by CI. |
+| `tools/build_manifest.py --verify` | Same, but exits non-zero if the published manifest and the images disagree. |
+| `tools/build_manifest.py --upload` | Uploads changed skins and writes a new manifest. Used by CI after a merge. |
+
+All three take `--baseline <previous manifest>`; fetch one with `gh release download --pattern manifest.json`.
 | `tools/upload.py` | MineSkin v2 client. |
 | `tools/classify.py` | Sorts skins into region folders from the dialogue tree plus the wiki overrides. |
 | `tools/regions.py` | The region list, and the city-to-region map used for classification. |
@@ -94,7 +94,7 @@ Generated, committed, and published as a release asset.
 | `tools/seed.py` | One-time bootstrap from the old `Skins.java` enum. Kept so the seed stays reproducible. |
 | `tools/skins_source.py` | Parser for that enum. |
 
-`build_manifest.py` refuses to upload more than 50 skins in one run; pass `--force-all` if a bulk re-upload really is intended.
+`build_manifest.py` refuses to **replace** more than 50 existing skins in one run, since each replacement discards a texture and signature that were working; pass `--force-all` if that really is intended. Adding new skins is not capped.
 
 ## How the server consumes this
 
