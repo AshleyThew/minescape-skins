@@ -7,10 +7,6 @@ on:
       - 'skins/**'
       - 'tools/**'
       - '.github/workflows/release.yml'
-  # The key allows 100 uploads an hour, so a large batch cannot finish in one run.
-  # This drains whatever is left; it exits in seconds when there is nothing to do.
-  schedule:
-    - cron: '20 * * * *'
   workflow_dispatch:
     inputs:
       force_all:
@@ -21,7 +17,7 @@ on:
 permissions:
   contents: write
 
-# Each run reads the manifest the previous run published, so two runs must not overlap.
+# Each pass reads the manifest the previous one published, so two runs must not overlap.
 concurrency:
   group: skins-release
   cancel-in-progress: false
@@ -30,6 +26,8 @@ jobs:
   release:
     name: Upload changed skins and publish
     runs-on: ubuntu-latest
+    # Room for three quota windows plus the uploads themselves.
+    timeout-minutes: 260
 
     steps:
       - uses: actions/checkout@v4
@@ -44,92 +42,82 @@ jobs:
       - name: Validate skins
         run: python tools/validate.py
 
-      # The manifest is not in git - main takes pull requests only, so CI cannot commit
-      # to it. The latest release asset is the store, and it is what the next diff is
-      # taken against.
-      - name: Fetch the published manifest
-        id: baseline
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release download --repo "${{ github.repository }}" \
-               --pattern manifest.json --output baseline.json 2>/dev/null; then
-            echo "found=true" >> $GITHUB_OUTPUT
-            echo "Baseline: $(python -c "import json;print(len(json.load(open('baseline.json'))['skins']))") skins"
-          else
-            echo "found=false" >> $GITHUB_OUTPUT
-            echo "No previous release - every skin will be uploaded."
-          fi
-
-      # Exit 75 means "fine, but there is more to do" - the hourly schedule continues it.
-      - name: Upload changed skins and build the manifest
-        id: build
+      # The key allows 100 uploads an hour, so a batch larger than that cannot finish in
+      # one pass. Rather than a clock-driven job firing hourly whether or not there is
+      # anything to do, the run continues itself: upload what the quota allows, publish
+      # it, wait exactly as long as the API asked, go again. A run with nothing to do
+      # finishes in seconds and publishes nothing.
+      - name: Upload changed skins and publish
         env:
           MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          FORCE_ALL: ${{ inputs.force_all }}
         run: |
-          args="--upload --output manifest.json"
-          if [ "${{ steps.baseline.outputs.found }}" = "true" ]; then
-            args="$args --baseline baseline.json"
-          fi
-          if [ "${{ inputs.force_all }}" = "true" ]; then
-            args="$args --force-all"
-          fi
-          set +e
-          python tools/build_manifest.py $args
-          code=$?
-          set -e
-          if [ "$code" = "75" ]; then
-            echo "::warning::MineSkin quota reached - publishing what was uploaded; the hourly schedule will continue."
-            exit 0
-          fi
-          exit $code
+          MAX_PASSES=3
+          final=0
 
-      # No new manifest means nothing changed, so the current release already describes
-      # these images and republishing would make every server re-download it.
-      - name: Decide whether to release
-        id: decide
-        if: always()
-        run: |
-          if [ -f manifest.json ]; then
-            echo "release=true" >> $GITHUB_OUTPUT
-          else
-            echo "release=false" >> $GITHUB_OUTPUT
-            echo "Nothing changed - keeping the current release."
-          fi
+          for pass in $(seq 1 $MAX_PASSES); do
+            echo "::group::Upload pass $pass of $MAX_PASSES"
+            rm -f manifest.json retry_after.txt
 
-      - name: Compute digest
-        if: always() && steps.decide.outputs.release == 'true'
-        run: |
-          sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
-          echo "manifest.json sha256: $(cat manifest.json.sha256)"
+            # The published manifest is the store - main takes pull requests only, so CI
+            # cannot commit one. Each pass diffs against the last published copy.
+            args="--upload --output manifest.json --retry-file retry_after.txt"
+            if gh release download --repo "$GITHUB_REPOSITORY" \
+                 --pattern manifest.json --output baseline.json --clobber 2>/dev/null; then
+              echo "baseline: $(python -c "import json;print(len(json.load(open('baseline.json'))['skins']))") skins"
+              args="$args --baseline baseline.json"
+            else
+              echo "no previous release - every skin will be uploaded"
+            fi
+            if [ "$FORCE_ALL" = "true" ]; then
+              args="$args --force-all"
+            fi
 
-      - name: Set release tag
-        id: tag
-        if: always() && steps.decide.outputs.release == 'true'
-        run: echo "tag=skins-$(date -u +%Y%m%d)-${{ github.run_number }}" >> $GITHUB_OUTPUT
+            set +e
+            python tools/build_manifest.py $args
+            code=$?
+            set -e
+            echo "::endgroup::"
 
-      - name: Publish release
-        if: always() && steps.decide.outputs.release == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          name: Skins ${{ steps.tag.outputs.tag }}
-          body: |
-            Skin manifest published from `${{ github.sha }}`.
+            # Publish before any wait, so progress survives even if the job is cut short.
+            if [ -f manifest.json ]; then
+              sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
+              tag="skins-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}-${pass}"
+              gh release create "$tag" manifest.json manifest.json.sha256 \
+                --repo "$GITHUB_REPOSITORY" \
+                --title "Skins $tag" \
+                --notes "Skin manifest published from \`$GITHUB_SHA\`.
 
-            The server plugin fetches these two assets and refuses the manifest
-            unless its SHA-256 matches:
+          The server plugin fetches both assets and refuses the manifest unless its SHA-256 matches:
 
-            - `manifest.json`
-            - `manifest.json.sha256`
+          - \`manifest.json\`
+          - \`manifest.json.sha256\`
 
-            Stable URLs:
-            ```
-            https://github.com/${{ github.repository }}/releases/latest/download/manifest.json
-            https://github.com/${{ github.repository }}/releases/latest/download/manifest.json.sha256
-            ```
-          files: |
-            manifest.json
-            manifest.json.sha256
-          draft: false
-          prerelease: false
+          Stable URLs:
+          \`\`\`
+          https://github.com/$GITHUB_REPOSITORY/releases/latest/download/manifest.json
+          https://github.com/$GITHUB_REPOSITORY/releases/latest/download/manifest.json.sha256
+          \`\`\`"
+              echo "published $tag"
+            else
+              echo "nothing to publish this pass"
+            fi
+
+            # Anything other than 75 is final: success, or a real failure worth reporting.
+            if [ "$code" != "75" ]; then
+              final=$code
+              break
+            fi
+
+            if [ "$pass" = "$MAX_PASSES" ]; then
+              echo "::warning::Still more to upload after $MAX_PASSES passes - re-run this workflow to continue."
+              break
+            fi
+
+            wait=$(cat retry_after.txt 2>/dev/null || echo 3600)
+            echo "MineSkin quota reached - waiting ${wait}s for the window to reset, then continuing."
+            sleep "$((wait + 30))"
+          done
+
+          exit $final

@@ -10,7 +10,7 @@ Each skin is one PNG under [`skins/`](skins), filed by OSRS region and named aft
 
 1. Branch, and drop a **64×64 PNG** into the region folder the NPC belongs to, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/kandarin/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
 2. Open a PR. CI validates names, regions, duplicates and image format, and comments on anything wrong. **Nothing is uploaded** — a PR you revise ten times, or close unmerged, costs no MineSkin quota. It also prints what merging *would* upload.
-3. Merge. CI uploads the changed images, rebuilds the manifest and publishes it as a release.
+3. Merge. CI uploads the changed images, rebuilds the manifest and publishes it as a release. MineSkin allows 100 uploads an hour, so a batch larger than that publishes what it can, waits for the window to reset and carries on in the same run — there is no scheduled job.
 4. The change reaches every region on the next server start, or immediately with `/skins pull`.
 
 To replace an existing skin, overwrite its PNG — keep the filename and the server keeps the reference. Moving a skin to a different region folder is free: it renames nothing and costs no upload.
