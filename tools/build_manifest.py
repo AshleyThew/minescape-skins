@@ -99,6 +99,7 @@ def main():
     ap.add_argument("--baseline", type=Path, help="previous manifest to diff against (the release asset)")
     ap.add_argument("--output", type=Path, help="where to write the new manifest (--upload only)")
     ap.add_argument("--max-uploads", type=int, help="stop after this many uploads, leaving the rest for the next run")
+    ap.add_argument("--retry-file", type=Path, help="write the seconds to wait here when the quota stops the run")
     args = ap.parse_args()
 
     errors = validator.validate(SKINS)
@@ -184,6 +185,10 @@ def main():
                 stopped = e
                 print("  " + str(e))
                 deferred.append(name)
+                if args.retry_file:
+                    # Lets the caller wait exactly as long as the API asked, rather than
+                    # guessing at an hour.
+                    args.retry_file.write_text(str(int(e.retry_after)), encoding="utf-8")
             except mineskin.UploadError as e:
                 failures.append((name, str(e)))
                 print("  FAILED " + name + ": " + str(e))
