@@ -26,6 +26,17 @@ MAX_WAIT = 120
 POLL_INTERVAL = 2
 POLL_ATTEMPTS = 60
 
+# MineSkin generates a skin by putting it on a Mojang account, and that step times out on
+# its side often enough to matter: two skins in one release failed with nothing wrong but
+# 'Promise timed out after 10000ms (gen-skin-change)', which took the whole run red. The
+# image is fine in that case, so try the upload again rather than reporting a failure.
+TRANSIENT_JOB_CODES = ("timeout", "unavailable", "internal_error")
+JOB_ATTEMPTS = 3
+
+
+class _TransientJob(Exception):
+    """The queue job failed in a way that is worth trying again."""
+
 
 class UploadError(Exception):
     """One skin could not be uploaded. Other skins may still succeed."""
@@ -159,6 +170,16 @@ class Client:
         if variant not in ("classic", "slim"):
             raise UploadError("unknown model variant: " + variant)
 
+        for attempt in range(1, JOB_ATTEMPTS + 1):
+            try:
+                return self._attempt(path, name, variant)
+            except _TransientJob as e:
+                if attempt == JOB_ATTEMPTS:
+                    raise UploadError(str(e) + " (after " + str(JOB_ATTEMPTS) + " attempts)")
+                print("    " + str(e) + ", retrying")
+                time.sleep(self.delay)
+
+    def _attempt(self, path, name, variant):
         with open(path, "rb") as handle:
             result = self.request(
                 "POST",
@@ -180,7 +201,13 @@ class Client:
             if status == "completed":
                 return self._extract(status_result)
             if status == "failed":
-                raise UploadError("job failed: " + str(status_result.get("errors", "unknown")))
+                errors = status_result.get("errors") or []
+                codes = [str(e.get("code", "")) for e in errors if isinstance(e, dict)]
+                message = "job failed: " + str(errors or "unknown")
+                if any(code in TRANSIENT_JOB_CODES for code in codes):
+                    raise _TransientJob(message)
+                raise UploadError(message)
             time.sleep(POLL_INTERVAL)
 
-        raise UploadError("job " + job_id + " did not complete in time")
+        # Still queued after two minutes is MineSkin being slow, not a bad image.
+        raise _TransientJob("job " + job_id + " did not complete in time")
