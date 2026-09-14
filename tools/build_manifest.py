@@ -6,6 +6,9 @@ recorded in the previous manifest is compared against the file on disk. Everythi
 unchanged is copied through byte-for-byte, so signatures that have worked for years are
 never regenerated. Moving a skin between region folders is therefore free.
 
+A changed skin does not always need an upload either: if pending/ carries a texture Mojang
+has already signed for that exact image (see tools/pending.py), it is adopted as it is.
+
 The manifest is not kept in git: main takes pull requests only and CI cannot commit to it,
 so the published release is the store. --baseline points at the previous manifest (the
 release asset) and --output at where to write the new one.
@@ -26,6 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
+import pending as pending_textures
 import upload as mineskin
 import validate as validator
 from skinfile import iter_skins
@@ -67,6 +71,35 @@ def git_commit():
 def current_skins():
     """name -> SkinFile for every PNG under skins/. Validation has already rejected duplicates."""
     return {f.name: f for f in iter_skins(SKINS) if f.path.suffix == ".png"}
+
+
+def adopt(changed, files):
+    """
+    Pre-signed textures from pending/ for the skins that changed, checked against Mojang.
+
+    A contributor who already had these signed by Mojang gets them copied into the manifest
+    as they are - no MineSkin upload, no quota, and the texture they already tested is the
+    texture the server serves. Anything that fails a check is simply left out and uploaded
+    the normal way, so a stale or mistyped entry slows a release down but cannot corrupt it.
+    """
+    entries, errors = pending_textures.load()
+    entries = {name: e for name, e in entries.items() if name in changed}
+    if not entries and not errors:
+        return {}
+
+    try:
+        accepted, verify_errors = pending_textures.verify(entries, files)
+    except pending_textures.PendingError as e:
+        # Mojang unreachable is not a reason to fail a release - it just means these skins
+        # go through MineSkin like any other.
+        print("could not check pending textures against Mojang (" + str(e) + ") - uploading instead")
+        return {}
+
+    for source, message in errors + verify_errors:
+        print("  pending rejected: " + source + ": " + message)
+    if accepted:
+        print("adopting " + str(len(accepted)) + " Mojang-signed texture(s) from pending/ - no upload needed")
+    return accepted
 
 
 def plan(files, previous, force_all):
@@ -117,10 +150,18 @@ def main():
     added = [n for n in changed if n not in previous]
     replaced = [n for n in changed if n in previous]
 
+    # Named only, not verified: --check runs on pull requests, where tools/pending.py has
+    # already checked these against Mojang and reported them. This is just so the preview
+    # says what merging would actually spend quota on.
+    supplied = {n for n in pending_textures.load()[0] if n in changed}
+
     print(str(len(files)) + " skins on disk, " + str(len(previous)) + " in the manifest")
     print(str(len(added)) + " new, " + str(len(replaced)) + " replaced, " + str(len(removed)) + " removed")
+    if supplied:
+        print(str(len(supplied)) + " of those come pre-signed in pending/ and cost no upload")
     for name in changed:
-        print("  + " + name + "  (" + files[name].relpath + ")")
+        print("  + " + name + "  (" + files[name].relpath + ")"
+              + ("  [pending texture]" if name in supplied else ""))
     for name in removed:
         print("  - " + name + "  (REMOVED - any NPC still using this name falls back to the default skin)")
 
@@ -137,15 +178,22 @@ def main():
         print("the published manifest matches skins/")
         return 0
 
-    if len(replaced) > MAX_REPLACEMENTS and not args.force_all:
+    adopted = adopt(changed, files) if changed else {}
+    uploads = [n for n in changed if n not in adopted]
+
+    # The cap exists because a mistaken bulk push throws away textures and signatures that
+    # were working. A pending entry is not that: Mojang has already signed it against the
+    # exact PNG in this repo, one deliberate entry per skin, so those are not counted.
+    replaced_uploads = [n for n in uploads if n in previous]
+    if len(replaced_uploads) > MAX_REPLACEMENTS and not args.force_all:
         print("")
-        print("refusing to replace " + str(len(replaced)) + " existing skins in one run (limit "
+        print("refusing to replace " + str(len(replaced_uploads)) + " existing skins in one run (limit "
               + str(MAX_REPLACEMENTS) + ").", file=sys.stderr)
         print("each one discards a working texture and signature. Re-run with --force-all if "
-              "this really is intended.", file=sys.stderr)
+              "this really is intended, or supply the textures in pending/.", file=sys.stderr)
         return 1
 
-    client = mineskin.Client() if changed else None
+    client = mineskin.Client() if uploads else None
     budget = 0
     if client:
         print("key limits: " + str(client.grants))
@@ -165,10 +213,19 @@ def main():
         digest = hashlib.sha256(f.read()).hexdigest()
         entry = None
 
-        if name in changed and stopped is None and done < budget:
+        if name in adopted:
+            entry = {
+                "texture": adopted[name]["texture"],
+                "signature": adopted[name]["signature"],
+                "image_sha256": digest,
+                "texture_url": adopted[name]["texture_url"],
+            }
+            if previous.get(name, {}).get("display"):
+                entry["display"] = previous[name]["display"]
+        elif name in changed and stopped is None and done < budget:
             try:
                 print("uploading " + name + " (" + f.variant + ")... ["
-                      + str(done + 1) + "/" + str(min(len(changed), budget)) + "]")
+                      + str(done + 1) + "/" + str(min(len(uploads), budget)) + "]")
                 value, signature = client.upload(f.path, name, f.variant)
                 entry = {
                     "texture": value,
@@ -215,7 +272,8 @@ def main():
     outstanding = sorted(set(deferred) | {n for n, _ in failures})
 
     print("")
-    print("uploaded " + str(done) + " skin(s) this run")
+    print("uploaded " + str(done) + " skin(s) this run"
+          + (", adopted " + str(len(adopted)) + " pre-signed" if adopted else ""))
     if outstanding:
         print(str(len(outstanding)) + " still to do: " + ", ".join(outstanding[:10])
               + (" ..." if len(outstanding) > 10 else ""))

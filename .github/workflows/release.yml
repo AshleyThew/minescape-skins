@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'skins/**'
+      - 'pending/**'
       - 'tools/**'
       - '.github/workflows/release.yml'
   workflow_dispatch:
