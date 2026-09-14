@@ -33,6 +33,8 @@ import sys
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -65,8 +67,19 @@ class PendingError(Exception):
 
 
 def session():
+    """
+    One connection, reused, that retries a dropped request.
+
+    A large contribution checks several hundred textures in a row, and over that many
+    requests Mojang's CDN will occasionally close a connection or answer 503. Without a
+    retry a single blip rejects an entry that is perfectly good - red pull request, and an
+    upload at merge time that was never needed.
+    """
     s = requests.Session()
     s.headers.update({"User-Agent": USER_AGENT, "Accept": "application/json"})
+    retry = Retry(total=4, connect=4, read=4, backoff_factor=0.5,
+                  status_forcelist=(429, 500, 502, 503, 504), allowed_methods=("GET",))
+    s.mount("https://", HTTPAdapter(max_retries=retry))
     return s
 
 
