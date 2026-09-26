@@ -121,6 +121,17 @@ The plugin fetches the digest first, skips the download when it already has that
 
 The digest is served from the same release as the file, so it proves **integrity** — that what arrived is what was published — not authenticity.
 
+### From a browser
+
+Release assets can't be fetched from a web page — GitHub sends no CORS header on them. So after publishing, CI also force-pushes the same two files to the orphan [`manifest`](../../tree/manifest) branch, where `raw.githubusercontent.com` serves them to web tools such as the dialogue editor:
+
+```
+https://raw.githubusercontent.com/AshleyThew/minescape-skins/manifest/manifest.json
+https://raw.githubusercontent.com/AshleyThew/minescape-skins/manifest/manifest.json.sha256
+```
+
+The branch is one commit, replaced on every release, and always matches the latest release. It is a mirror, not the store.
+
 ## Setup
 
 CI needs one repository secret:
