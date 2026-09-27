@@ -10,10 +10,23 @@ Each skin is one PNG under [`skins/`](skins), filed by OSRS region and named aft
 
 1. Branch, and drop a **64×64 PNG** into the region folder the NPC belongs to, named in `UPPER_SNAKE_CASE` — the filename *is* the name the server and the dialogue editor use (`skins/kandarin/MAGE_OF_ZAMORAK.png` → `MAGE_OF_ZAMORAK`).
 2. Open a PR. CI validates names, regions, duplicates and image format, and comments on anything wrong. **Nothing is uploaded** — a PR you revise ten times, or close unmerged, costs no MineSkin quota. It also prints what merging *would* upload.
-3. Merge. CI uploads the changed images, rebuilds the manifest and publishes it as a release.
+3. Merge. CI uploads the changed images, rebuilds the manifest and publishes it as a release. MineSkin allows 100 uploads an hour, so a batch larger than that publishes what it can, waits for the window to reset and carries on in the same run — there is no scheduled job.
 4. The change reaches every region on the next server start, or immediately with `/skins pull`.
 
 To replace an existing skin, overwrite its PNG — keep the filename and the server keeps the reference. Moving a skin to a different region folder is free: it renames nothing and costs no upload.
+
+## Skins Mojang has already signed
+
+If you built the skins by wearing them on a Minecraft account, Mojang signed each one the moment you put it on. That signed texture is exactly what an upload would produce, so there is no reason to spend MineSkin quota getting another — drop it in [`pending/`](pending) and merging copies it straight into the manifest:
+
+```bash
+python tools/pending.py --add BANDIT --profile YourAccountName   # reads it from Mojang
+python tools/pending.py --check                                  # verifies the folder
+```
+
+Nothing is taken on trust. Both on the pull request and again on merge, every entry is checked against Mojang itself: the signature has to verify against [Mojang's published profile-property keys](https://api.minecraftservices.com/publickeys), the signed payload has to point at `textures.minecraft.net`, its model has to match the `.slim` marker on the filename, and the image Mojang serves has to be — pixel for pixel — the PNG in the pull request. An entry that fails any of those is reported on the PR and simply left out; that skin is then uploaded the ordinary way, so a bad entry can slow a release down but cannot put a wrong texture in the manifest.
+
+This is how a batch of several hundred skins lands in one merge instead of crawling through quota windows for hours. [`pending/README.md`](pending/README.md) has the file format.
 
 ## Region folders
 
@@ -75,13 +88,14 @@ Both 64×64 and the pre-1.8 64×32 layout are accepted — four skins (`DIANGO`,
 
 `texture` and `signature` are the Mojang texture property and its signature — what the server puts on a `GameProfile`. `display` is an optional label; without it the server derives one from the name. `region` and `slim` mirror the file's folder and its `.slim.png` suffix, and are re-derived on every run, so moving or renaming a file updates the manifest without costing an upload. `slim` is omitted for Steve-model skins.
 
-`image_sha256` is the digest of the PNG in this repo, and it is what makes incremental uploads work: CI re-uploads a skin only when its image digest changes. **Unchanged entries are copied through byte-for-byte, so working signatures are never regenerated.**
+`image_sha256` is the digest of the PNG in this repo, and it is what makes incremental uploads work: CI re-uploads a skin only when its image digest changes. **Unchanged entries are copied through byte-for-byte, so working signatures are never regenerated.** A changed skin that comes with a verified entry in [`pending/`](pending) takes its texture from there instead of from an upload.
 
 ## Tools
 
 | | |
 |---|---|
 | `tools/validate.py` | Filename, PNG format and dimension checks. Runs on PRs and before any upload. |
+| `tools/pending.py` | Pre-signed textures in `pending/`: builds them from a Mojang profile, and verifies them against Mojang. |
 | `tools/build_manifest.py --check` | Reports which skins would be uploaded. Uploads nothing, needs no API key. |
 | `tools/build_manifest.py --verify` | Same, but exits non-zero if the published manifest and the images disagree. |
 | `tools/build_manifest.py --upload` | Uploads changed skins and writes a new manifest. Used by CI after a merge. |

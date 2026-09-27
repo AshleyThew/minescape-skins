@@ -1,1 +1,5 @@
 requests>=2.31
+# tools/pending.py: verifying Mojang's signature on a pre-signed texture, and
+# comparing the image Mojang serves against the PNG in this repo.
+cryptography>=42
+Pillow>=10

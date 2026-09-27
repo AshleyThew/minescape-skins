@@ -37,6 +37,13 @@ jobs:
         continue-on-error: true
         run: python tools/validate.py --markdown "$RUNNER_TEMP/report.md"
 
+      # Pre-signed textures under pending/ are checked against Mojang itself - its public
+      # keys for the signature, its CDN for the image. Writes nothing when the PR has none.
+      - name: Verify pending textures against Mojang
+        id: pending
+        continue-on-error: true
+        run: python tools/pending.py --check --markdown "$RUNNER_TEMP/pending.md"
+
       # Runs whether validation passed or failed. A clean PR gets no comment, but one that
       # was failing and has been fixed sees its report flip to "passed" instead of leaving
       # a stale wall of errors behind.
@@ -45,9 +52,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           MARKER: '<!-- skins-validate -->'
-          FAILED: ${{ steps.validate.outcome == 'failure' }}
+          FAILED: ${{ steps.validate.outcome == 'failure' || steps.pending.outcome == 'failure' }}
         run: |
-          printf '%s\n\n' "$MARKER" | cat - "$RUNNER_TEMP/report.md" > "$RUNNER_TEMP/comment.md"
+          printf '%s\n\n' "$MARKER" > "$RUNNER_TEMP/comment.md"
+          cat "$RUNNER_TEMP/report.md" >> "$RUNNER_TEMP/comment.md"
+          # Empty unless the PR carries pending/ entries, so a normal PR reads as before.
+          if [ -s "$RUNNER_TEMP/pending.md" ]; then
+            printf '\n---\n\n' >> "$RUNNER_TEMP/comment.md"
+            cat "$RUNNER_TEMP/pending.md" >> "$RUNNER_TEMP/comment.md"
+          fi
           # One sticky comment per PR: update the previous report instead of stacking new ones.
           existing=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
             --jq "[.[] | select(.body | startswith(\"$MARKER\"))] | .[0].id // empty")
@@ -62,7 +75,7 @@ jobs:
           fi
 
       - name: Fail on invalid skins
-        if: steps.validate.outcome == 'failure'
+        if: steps.validate.outcome == 'failure' || steps.pending.outcome == 'failure'
         run: |
           echo "Skin validation failed - see the comment on this pull request." >&2
           exit 1
