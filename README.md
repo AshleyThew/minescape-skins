@@ -108,7 +108,7 @@ All three take `--baseline <previous manifest>`; fetch one with `gh release down
 | `tools/seed.py` | One-time bootstrap from the old `Skins.java` enum. Kept so the seed stays reproducible. |
 | `tools/skins_source.py` | Parser for that enum. |
 
-`build_manifest.py` refuses to **replace** more than 50 existing skins in one run, since each replacement discards a texture and signature that were working; pass `--force-all` if that really is intended. Adding new skins is not capped.
+`build_manifest.py` refuses to **replace** more than 50 existing skins in one run, since each replacement discards a texture and signature that were working; run the release workflow with `allow_replacements` ticked (`--allow-replacements`) if that really is intended. `--force-all` is different: it re-uploads every skin. Adding new skins is not capped.
 
 ## How the server consumes this
 

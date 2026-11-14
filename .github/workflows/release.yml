@@ -14,6 +14,10 @@ on:
         description: 'Re-upload every skin to MineSkin (rarely correct)'
         type: boolean
         default: false
+      allow_replacements:
+        description: 'Allow this run to replace more than 50 existing skins (a deliberate redraw)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -53,6 +57,7 @@ jobs:
           MINESKIN_API_KEY: ${{ secrets.MINESKIN_API_KEY }}
           GH_TOKEN: ${{ github.token }}
           FORCE_ALL: ${{ inputs.force_all }}
+          ALLOW_REPLACEMENTS: ${{ inputs.allow_replacements }}
         run: |
           MAX_PASSES=3
           final=0
@@ -73,6 +78,9 @@ jobs:
             fi
             if [ "$FORCE_ALL" = "true" ]; then
               args="$args --force-all"
+            fi
+            if [ "$ALLOW_REPLACEMENTS" = "true" ]; then
+              args="$args --allow-replacements"
             fi
 
             set +e

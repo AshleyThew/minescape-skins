@@ -129,6 +129,8 @@ def main():
     group.add_argument("--verify", action="store_true", help="like --check, but fail if anything is out of sync")
     group.add_argument("--upload", action="store_true", help="upload changed skins and rewrite the manifest")
     ap.add_argument("--force-all", action="store_true", help="re-upload every skin (rarely correct)")
+    ap.add_argument("--allow-replacements", action="store_true",
+                    help="lift the replacement cap for a batch that really does redraw that many skins")
     ap.add_argument("--baseline", type=Path, help="previous manifest to diff against (the release asset)")
     ap.add_argument("--output", type=Path, help="where to write the new manifest (--upload only)")
     ap.add_argument("--max-uploads", type=int, help="stop after this many uploads, leaving the rest for the next run")
@@ -185,12 +187,13 @@ def main():
     # were working. A pending entry is not that: Mojang has already signed it against the
     # exact PNG in this repo, one deliberate entry per skin, so those are not counted.
     replaced_uploads = [n for n in uploads if n in previous]
-    if len(replaced_uploads) > MAX_REPLACEMENTS and not args.force_all:
+    if len(replaced_uploads) > MAX_REPLACEMENTS and not (args.force_all or args.allow_replacements):
         print("")
         print("refusing to replace " + str(len(replaced_uploads)) + " existing skins in one run (limit "
               + str(MAX_REPLACEMENTS) + ").", file=sys.stderr)
-        print("each one discards a working texture and signature. Re-run with --force-all if "
-              "this really is intended, or supply the textures in pending/.", file=sys.stderr)
+        print("each one discards a working texture and signature. If this really is intended, re-run "
+              "the release with allow_replacements (--allow-replacements), or supply the textures in "
+              "pending/.", file=sys.stderr)
         return 1
 
     client = mineskin.Client() if uploads else None
