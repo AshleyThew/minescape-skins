@@ -22,7 +22,7 @@ on:
 permissions:
   contents: write
 
-# Each pass reads the manifest the previous one published, so two runs must not overlap.
+# Each run reads the manifest the previous one published, so two runs must not overlap.
 concurrency:
   group: skins-release
   cancel-in-progress: false
@@ -31,8 +31,8 @@ jobs:
   release:
     name: Upload changed skins and publish
     runs-on: ubuntu-latest
-    # Room for three quota windows plus the uploads themselves.
-    timeout-minutes: 260
+    # One quota window's uploads (100 at about 20 a minute) and nothing else.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -48,9 +48,10 @@ jobs:
         run: python tools/validate.py
 
       # The key allows 100 uploads an hour, so a batch larger than that cannot finish in
-      # one pass. Rather than a clock-driven job firing hourly whether or not there is
-      # anything to do, the run continues itself: upload what the quota allows, publish
-      # it, wait exactly as long as the API asked, go again. A run with nothing to do
+      # one run. The run never sleeps waiting for the quota - that would hold a runner idle
+      # for up to an hour per window. It uploads what the quota allows, publishes that, and
+      # finishes; a warning says when the quota resets, and running
+      # this workflow again from then picks up where it stopped. A run with nothing to do
       # finishes in seconds and publishes nothing.
       - name: Upload changed skins and publish
         env:
@@ -59,44 +60,37 @@ jobs:
           FORCE_ALL: ${{ inputs.force_all }}
           ALLOW_REPLACEMENTS: ${{ inputs.allow_replacements }}
         run: |
-          MAX_PASSES=3
-          final=0
+          rm -f manifest.json retry_after.txt
 
-          for pass in $(seq 1 $MAX_PASSES); do
-            echo "::group::Upload pass $pass of $MAX_PASSES"
-            rm -f manifest.json retry_after.txt
+          # The published manifest is the store - main takes pull requests only, so CI
+          # cannot commit one. Each run diffs against the last published copy.
+          args="--upload --output manifest.json --retry-file retry_after.txt"
+          if gh release download --repo "$GITHUB_REPOSITORY" \
+               --pattern manifest.json --output baseline.json --clobber 2>/dev/null; then
+            echo "baseline: $(python -c "import json;print(len(json.load(open('baseline.json'))['skins']))") skins"
+            args="$args --baseline baseline.json"
+          else
+            echo "no previous release - every skin will be uploaded"
+          fi
+          if [ "$FORCE_ALL" = "true" ]; then
+            args="$args --force-all"
+          fi
+          if [ "$ALLOW_REPLACEMENTS" = "true" ]; then
+            args="$args --allow-replacements"
+          fi
 
-            # The published manifest is the store - main takes pull requests only, so CI
-            # cannot commit one. Each pass diffs against the last published copy.
-            args="--upload --output manifest.json --retry-file retry_after.txt"
-            if gh release download --repo "$GITHUB_REPOSITORY" \
-                 --pattern manifest.json --output baseline.json --clobber 2>/dev/null; then
-              echo "baseline: $(python -c "import json;print(len(json.load(open('baseline.json'))['skins']))") skins"
-              args="$args --baseline baseline.json"
-            else
-              echo "no previous release - every skin will be uploaded"
-            fi
-            if [ "$FORCE_ALL" = "true" ]; then
-              args="$args --force-all"
-            fi
-            if [ "$ALLOW_REPLACEMENTS" = "true" ]; then
-              args="$args --allow-replacements"
-            fi
+          set +e
+          python tools/build_manifest.py $args
+          code=$?
+          set -e
 
-            set +e
-            python tools/build_manifest.py $args
-            code=$?
-            set -e
-            echo "::endgroup::"
-
-            # Publish before any wait, so progress survives even if the job is cut short.
-            if [ -f manifest.json ]; then
-              sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
-              tag="skins-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}-${pass}"
-              gh release create "$tag" manifest.json manifest.json.sha256 \
-                --repo "$GITHUB_REPOSITORY" \
-                --title "Skins $tag" \
-                --notes "Skin manifest published from \`$GITHUB_SHA\`.
+          if [ -f manifest.json ]; then
+            sha256sum manifest.json | cut -d' ' -f1 > manifest.json.sha256
+            tag="skins-$(date -u +%Y%m%d)-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+            gh release create "$tag" manifest.json manifest.json.sha256 \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Skins $tag" \
+              --notes "Skin manifest published from \`$GITHUB_SHA\`.
 
           The server plugin fetches both assets and refuses the manifest unless its SHA-256 matches:
 
@@ -108,33 +102,23 @@ jobs:
           https://github.com/$GITHUB_REPOSITORY/releases/latest/download/manifest.json
           https://github.com/$GITHUB_REPOSITORY/releases/latest/download/manifest.json.sha256
           \`\`\`"
-              echo "published $tag"
-            else
-              echo "nothing to publish this pass"
-            fi
+            echo "published $tag"
+          else
+            echo "nothing to publish this run"
+          fi
 
-            # Anything other than 75 is final: success, or a real failure worth reporting.
-            if [ "$code" != "75" ]; then
-              final=$code
-              break
-            fi
-
-            if [ "$pass" = "$MAX_PASSES" ]; then
-              echo "::warning::Still more to upload after $MAX_PASSES passes - re-run this workflow to continue."
-              break
-            fi
-
+          # 75 means this went fine and there is more to do: say so and finish green.
+          if [ "$code" = "75" ]; then
             wait=$(cat retry_after.txt 2>/dev/null || echo 3600)
-            echo "MineSkin quota reached - waiting ${wait}s for the window to reset, then continuing."
-            sleep "$((wait + 30))"
-          done
-
-          exit $final
+            echo "::warning::MineSkin quota reached - more skins still to upload. Run this workflow again in about $(( (wait + 59) / 60 )) minute(s) (with the same options) to continue."
+            exit 0
+          fi
+          exit $code
 
       # Browsers cannot read release assets - GitHub sends no CORS header on them - so web
       # tools like the dialogue editor read this copy from raw.githubusercontent.com instead.
       # The branch is a single orphan commit, force-pushed, so it never builds up history.
-      # Runs even after a failed pass, since earlier passes may still have published.
+      # Runs even after a failed upload step, since it may still have published.
       - name: Mirror manifest to the manifest branch
         if: ${{ !cancelled() }}
         env:
