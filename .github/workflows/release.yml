@@ -122,3 +122,31 @@ jobs:
           done
 
           exit $final
+
+      # Browsers cannot read release assets - GitHub sends no CORS header on them - so web
+      # tools like the dialogue editor read this copy from raw.githubusercontent.com instead.
+      # The branch is a single orphan commit, force-pushed, so it never builds up history.
+      # Runs even after a failed pass, since earlier passes may still have published.
+      - name: Mirror manifest to the manifest branch
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir mirror
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern 'manifest.json*' --dir mirror
+
+          if git fetch --depth 1 origin manifest 2>/dev/null &&
+             [ "$(git show FETCH_HEAD:manifest.json.sha256)" = "$(cat mirror/manifest.json.sha256)" ]; then
+            echo "manifest branch already matches the latest release"
+            exit 0
+          fi
+
+          tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)
+          cd mirror
+          git init -q -b manifest
+          git add manifest.json manifest.json.sha256
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "Manifest from $tag"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" manifest
+          echo "mirrored $tag to the manifest branch"
